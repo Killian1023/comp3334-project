@@ -4,6 +4,25 @@ import { db } from '../../../../db';
 import { users } from '../../../../db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { logAction, logError } from '../../../../lib/logger';
+import jwt from 'jsonwebtoken';
+
+// Use the same JWT settings as the login route
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development-only';
+const JWT_EXPIRES_IN = '24h';
+
+/**
+ * Generate a JWT token for authentication
+ */
+const generateToken = (userId: string): string => {
+  return jwt.sign(
+    { 
+      sub: userId,
+      iat: Math.floor(Date.now() / 1000)
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  );
+};
 
 export async function POST(request: Request) {
   try {
@@ -41,16 +60,21 @@ export async function POST(request: Request) {
       updatedAt: now
     });
     
-    await logAction(`User registered successfully, preparing for automatic login`, { 
+    await logAction(`User registered successfully`, { 
       userId, 
       username,
       registrationTime: now 
     });
     
+    // Generate JWT token for the newly registered user
+    const token = generateToken(userId);
+    
     return NextResponse.json({ 
       message: 'Registration successful',
       userId,
-      username
+      username,
+      token,
+      expiresIn: JWT_EXPIRES_IN
     }, { status: 201 });
     
   } catch (error) {
