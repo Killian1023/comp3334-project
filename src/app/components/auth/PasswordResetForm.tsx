@@ -1,47 +1,125 @@
+'use client';
+
 import React, { useState } from 'react';
-import { useRouter } from 'next/router';
-import { Input } from '../ui/Input';
-import { Button } from '../ui/Button';
-import { Form } from '../ui/Form';
+import Input from '../ui/Input';
+import Button from '../ui/Button';
 
-const PasswordResetForm = () => {
+interface PasswordResetFormProps {
+    onResetRequest: (email: string) => Promise<void>;
+    onResetPassword?: (newPassword: string) => Promise<void>;
+    showPasswordForm?: boolean;
+    isLoading?: boolean;
+}
+
+const PasswordResetForm: React.FC<PasswordResetFormProps> = ({ 
+    onResetRequest, 
+    onResetPassword, 
+    showPasswordForm = false,
+    isLoading = false
+}) => {
     const [email, setEmail] = useState('');
-    const [message, setMessage] = useState('');
-    const router = useRouter();
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
 
-    const handleSubmit = async (e) => {
+    const handleEmailSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setMessage('');
-
-        const response = await fetch('/api/auth/reset-password', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email }),
-        });
-
-        if (response.ok) {
-            setMessage('Password reset link sent to your email.');
-            setEmail('');
-        } else {
-            setMessage('Error sending password reset link. Please try again.');
+        setError('');
+        
+        if (!email) {
+            setError('Email is required');
+            return;
+        }
+        
+        try {
+            await onResetRequest(email);
+        } catch (err) {
+            setError('Failed to process request');
         }
     };
 
+    const handlePasswordSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        
+        if (!password || !confirmPassword) {
+            setError('Both fields are required');
+            return;
+        }
+        
+        if (password !== confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+        
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters long');
+            return;
+        }
+        
+        try {
+            await onResetPassword?.(password);
+        } catch (err) {
+            setError('Failed to update password');
+        }
+    };
+
+    if (showPasswordForm) {
+        return (
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                {error && <p className="text-red-500">{error}</p>}
+                
+                <div>
+                    <label htmlFor="password" className="block mb-1">New Password</label>
+                    <Input
+                        id="password"
+                        type="password"
+                        placeholder="Enter new password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={isLoading}
+                    />
+                </div>
+                
+                <div>
+                    <label htmlFor="confirmPassword" className="block mb-1">Confirm Password</label>
+                    <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="Confirm new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        disabled={isLoading}
+                    />
+                </div>
+                
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading ? 'Processing...' : 'Reset Password'}
+                </Button>
+            </form>
+        );
+    }
+
     return (
-        <Form onSubmit={handleSubmit}>
-            <h2>Reset Password</h2>
-            {message && <p>{message}</p>}
-            <Input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-            />
-            <Button type="submit">Send Reset Link</Button>
-        </Form>
+        <form onSubmit={handleEmailSubmit} className="space-y-4">
+            {error && <p className="text-red-500">{error}</p>}
+            
+            <div>
+                <label htmlFor="email" className="block mb-1">Email</label>
+                <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
+                />
+            </div>
+            
+            <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Sending...' : 'Send Reset Link'}
+            </Button>
+        </form>
     );
 };
 

@@ -1,38 +1,54 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { getUserById, updateUser, deleteUser } from '../../../db/index';
-import { authenticateUser } from '../../../lib/auth';
-import { logAction } from '../../../lib/logger';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserById, updateUser, deleteUser } from '../../../lib/auth';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-    const { method } = req;
-
-    switch (method) {
-        case 'GET':
-            const userId = req.query.id;
-            const user = await getUserById(userId);
-            if (user) {
-                res.status(200).json(user);
-            } else {
-                res.status(404).json({ message: 'User not found' });
-            }
-            break;
-
-        case 'PUT':
-            const { id, ...userData } = req.body;
-            const updatedUser = await updateUser(id, userData);
-            logAction(`User updated: ${id}`);
-            res.status(200).json(updatedUser);
-            break;
-
-        case 'DELETE':
-            const deleteId = req.query.id;
-            await deleteUser(deleteId);
-            logAction(`User deleted: ${deleteId}`);
-            res.status(204).end();
-            break;
-
-        default:
-            res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
-            res.status(405).end(`Method ${method} Not Allowed`);
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const userId = searchParams.get('id');
+  
+  if (!userId) {
+    return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
+  }
+  
+  try {
+    const user = await getUserById(userId);
+    if (user) {
+      return NextResponse.json(user);
+    } else {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
+  } catch (error) {
+    return NextResponse.json({ message: 'Error retrieving user' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  const data = await request.json();
+  const { id, ...userData } = data;
+  
+  if (!id) {
+    return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
+  }
+  
+  try {
+    const updatedUser = await updateUser(id, userData);
+    return NextResponse.json(updatedUser);
+  } catch (error) {
+    return NextResponse.json({ message: 'Failed to update user' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const deleteId = searchParams.get('id');
+  
+  if (!deleteId) {
+    return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
+  }
+  
+  try {
+    await deleteUser(deleteId);
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    return NextResponse.json({ message: 'Failed to delete user' }, { status: 500 });
+  }
 }

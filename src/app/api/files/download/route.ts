@@ -1,33 +1,61 @@
-import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
-import { decryptFile } from '@/lib/encryption';
-import { logger } from '@/lib/logger';
-import { getFileById } from '@/db/index';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
+import { readEncryptedFile } from '@/lib/file';
+import { logError } from '@/lib/logger';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-    const session = await getSession(request);
-    if (!session) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: NextRequest) {
+  try {
+    // Verify authentication
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const fileId = params.id;
-    const file = await getFileById(fileId);
-
-    if (!file) {
-        return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    
+    const token = authHeader.substring(7);
+    const userId = verifyToken(token);
+    if (!userId) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
-
-    try {
-        const decryptedFile = await decryptFile(file.encryptedData);
-        logger.log('File downloaded', { userId: session.userId, fileId });
-        return new Response(decryptedFile, {
-            headers: {
-                'Content-Type': file.contentType,
-                'Content-Disposition': `attachment; filename="${file.originalName}"`,
-            },
-        });
-    } catch (error) {
-        logger.error('Error decrypting file', { error });
-        return NextResponse.json({ error: 'Failed to download file' }, { status: 500 });
+    
+    // Get file ID from the request
+    const fileId = request.nextUrl.searchParams.get('id');
+    if (!fileId) {
+      return NextResponse.json({ error: 'File ID is required' }, { status: 400 });
     }
+    
+    // Get the file using our helper
+    const { fileBuffer, metadata } = await readEncryptedFile(fileId, userId);
+    
+    // Log the metadata to ensure it's correct
+    console.log('Sending file download with metadata:', {
+      fileId,
+      iv: metadata.iv,
+      ivLength: metadata.iv?.length,
+      encryptedNameLength: metadata.encryptedName?.length,
+      type: metadata.originalType
+    });
+    
+    // Return the encrypted file with metadata needed for decryption
+    return new NextResponse(fileBuffer as Buffer, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename=${fileId}.enc`,
+        'X-Encryption-IV': metadata.iv,
+        'X-Encrypted-Name': metadata.encryptedName,
+        'X-Original-Type': metadata.originalType,
+        // Adding cache control to prevent caching issues
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
+  } catch (error) {
+    await logError(error as Error, 'file-download-api');
+    if ((error as Error).message === 'Unauthorized access') {
+      return NextResponse.json({ error: 'Unauthorized access to file' }, { status: 403 });
+    } else if ((error as Error).message === 'File not found') {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+    return NextResponse.json({ error: 'Failed to process file download' }, { status: 500 });
+  }
 }
