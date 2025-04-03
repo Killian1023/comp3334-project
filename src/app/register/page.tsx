@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import RegisterForm from '@/app/components/auth/RegisterForm';
 import { useRouter } from 'next/navigation';
+import { ensureEncryptionKeys } from '@/app/utils/clientencryption';
 
 type RegisterData = {
   username: string;
@@ -14,33 +15,6 @@ const RegisterPage = () => {
     const [success, setSuccess] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const router = useRouter();
-
-    // Ensure encryption keys are generated and stored for the user - same as in login page
-    const ensureEncryptionKeys = async (userId: string) => {
-        try {
-            // Check if keys already exist
-            if (!localStorage.getItem(`encryptionKey_${userId}`)) {
-                // Generate a new encryption key
-                const key = await window.crypto.subtle.generateKey(
-                    {
-                        name: 'AES-GCM',
-                        length: 256
-                    },
-                    true,
-                    ['encrypt', 'decrypt']
-                );
-                
-                // Export the key to store it
-                const exportedKey = await window.crypto.subtle.exportKey('raw', key);
-                const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exportedKey)));
-                console.log('Generated encryption key during registration:', keyBase64);
-                // Store the key with user ID to keep it specific to the user
-                localStorage.setItem(`encryptionKey_${userId}`, keyBase64);
-            }
-        } catch (error) {
-            console.error('Failed to generate encryption keys:', error);
-        }
-    };
 
     const handleRegister = async (data: RegisterData): Promise<boolean> => {
         try {
@@ -76,8 +50,8 @@ const RegisterPage = () => {
                 username: registrationData.username
             }));
             
-            // Generate and store encryption keys for the new user
-            await ensureEncryptionKeys(registrationData.userId);
+            // Generate and store encryption keys using the centralized function
+            await ensureEncryptionKeys(registrationData.userId, data.password);
             
             // Log success
             console.log('User registered and logged in successfully');

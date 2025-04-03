@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoginForm from '@/app/components/auth/LoginForm';
+import { ensureEncryptionKeys } from '@/app/utils/clientencryption';
 
 const LoginPage = () => {
     const [error, setError] = useState<string | null>(null);
@@ -38,8 +39,8 @@ const LoginPage = () => {
             // Store user info (without sensitive data)
             localStorage.setItem('user', JSON.stringify(data.user));
             
-            // Generate and store encryption keys if they don't exist yet
-            await ensureEncryptionKeys(data.user.id);
+            // Generate and store encryption keys using password for additional security
+            await ensureEncryptionKeys(data.user.id, credentials.password);
             
             // Log successful login
             console.log('Login successful');
@@ -51,33 +52,6 @@ const LoginPage = () => {
             setError('An unexpected error occurred. Please try again.');
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    // Ensure encryption keys are generated and stored for the user
-    const ensureEncryptionKeys = async (userId: string) => {
-        try {
-            // Check if keys already exist
-            if (!localStorage.getItem(`encryptionKey_${userId}`)) {
-                // Generate a new encryption key
-                const key = await window.crypto.subtle.generateKey(
-                    {
-                        name: 'AES-GCM',
-                        length: 256
-                    },
-                    true,
-                    ['encrypt', 'decrypt']
-                );
-                
-                // Export the key to store it
-                const exportedKey = await window.crypto.subtle.exportKey('raw', key);
-                const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(exportedKey)));
-                console.log('Generated encryption key:', keyBase64);
-                // Store the key with user ID to keep it specific to the user
-                localStorage.setItem(`encryptionKey_${userId}`, keyBase64);
-            }
-        } catch (error) {
-            console.error('Failed to generate encryption keys:', error);
         }
     };
 

@@ -1,3 +1,7 @@
+两个地方有ENCRYPTION，一个在clientencryption.tsx，用于在本地生成用户的encryption key，还有一个是密码hash，在auth.ts里面，用于密码加密。
+filehelper.ts用于加密及解密文件。
+
+
 Section 5: Functionality
 The CORE functionalities of your application are listed below:
 1. User Management:
