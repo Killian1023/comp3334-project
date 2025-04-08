@@ -15,6 +15,7 @@
     "better-sqlite3": "^11.9.1",
     "drizzle-kit": "^0.30.6",
     "drizzle-orm": "^0.41.0",
+    "jose": "^6.0.10",
     "jsonwebtoken": "^9.0.2",
     "next": "15.2.4",
     "react": "^19.0.0",
