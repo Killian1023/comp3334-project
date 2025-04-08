@@ -55,6 +55,9 @@ note:
     /app/lib/auth.ts 用戶處理
     /app/lib/logger.ts 日誌處理
 
+文件加解密：ECC-256
+fileKey加解密：ECC-256
+
 upload加fileKey，加密文本，用publicKey加密fileKey，將encryptedFileKey發給後端，存在access table
 後端存publicKey (Michael):
     /app/api/file/upload 上傳api
