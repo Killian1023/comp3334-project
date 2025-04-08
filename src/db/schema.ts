@@ -8,6 +8,7 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  publicKey: text('public_key').notNull(), // 用戶的公鑰
   email: text('email').notNull().unique(),
   publicKey: text('public_key').notNull(),
   createdAt: text('created_at')
