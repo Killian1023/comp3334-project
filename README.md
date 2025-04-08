@@ -59,7 +59,7 @@ upload加fileKey，加密文本，用publicKey加密fileKey，將encryptedFileKe
 後端存publicKey (Michael):
     /app/api/file/upload 上傳api
     /app/api/file/download 下載api，需要包括下載共享文件的功能
-    /app/lib/fileHelper 加密及解密文件的function
+    /app/utils/fileHelper 加密及解密文件的function
     /app/api/auth/getPublicKey 獲取用戶publicKey
 
 註冊生成非對稱密鑰 (Michael)
