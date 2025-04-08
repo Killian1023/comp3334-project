@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RegisterForm from '@/app/components/auth/RegisterForm';
 import { useRouter } from 'next/navigation';
-import { ensureEncryptionKeys } from '@/app/utils/clientencryption';
+import { ensureEncryptionKeys, generateKeyPairECC, KeyPair } from '@/app/utils/clientencryption';
 
 type RegisterData = {
   username: string;
@@ -17,6 +17,7 @@ const RegisterPage = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [showPrivateKey, setShowPrivateKey] = useState<boolean>(false);
     const [privateKey, setPrivateKey] = useState<string | null>(null);
+    const [publicKey, setPublicKey] = useState<string | null>(null);
     const [copySuccess, setCopySuccess] = useState<boolean>(false);
     const router = useRouter();
 
@@ -25,12 +26,21 @@ const RegisterPage = () => {
             setIsLoading(true);
             console.log(`Registration attempt for user: ${data.username}`);
             
+            // 在客户端生成密钥对
+            const keyPair = await generateKeyPairECC();
+            setPrivateKey(keyPair.privateKey);
+            setPublicKey(keyPair.publicKey);
+            
+            // 发送请求到服务器，包含用户信息和公钥
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(data),
+                body: JSON.stringify({
+                    ...data,
+                    publicKey: keyPair.publicKey // 将公钥发送给服务器
+                }),
             });
 
             const responseData = await response.json();
@@ -45,20 +55,18 @@ const RegisterPage = () => {
             }
             
             setSuccess('Registration successful! Please save your private key securely.');
-            setPrivateKey(responseData.privateKey);
             setShowPrivateKey(true);
             
             // Store auth token and user info in localStorage
             localStorage.setItem('authToken', responseData.token);
             localStorage.setItem('user', JSON.stringify({
                 id: responseData.userId,
-                username: responseData.username
+                username: responseData.username,
+                publicKey: keyPair.publicKey
             }));
             
             // Store private key securely
-            if (responseData.privateKey) {
-                localStorage.setItem('privateKey', responseData.privateKey);
-            }
+            localStorage.setItem('privateKey', keyPair.privateKey);
             
             // Generate and store encryption keys using the centralized function
             await ensureEncryptionKeys(responseData.userId, data.password);
@@ -158,7 +166,31 @@ const RegisterPage = () => {
                     )}
 
                     {!showPrivateKey && (
-                        <RegisterForm onSubmit={handleRegister} isLoading={isLoading} />
+                        <>
+                            <RegisterForm onSubmit={handleRegister} isLoading={isLoading} />
+                            
+                            <div className="mt-6">
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-gray-300"></div>
+                                    </div>
+                                    <div className="relative flex justify-center text-sm">
+                                        <span className="px-2 bg-white text-gray-500">
+                                            Or
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 text-center">
+                                    <p className="text-sm text-gray-600">
+                                        Already have an account?{' '}
+                                        <a href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+                                            Sign in here
+                                        </a>
+                                    </p>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
             </div>

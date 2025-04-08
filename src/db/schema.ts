@@ -10,7 +10,6 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   publicKey: text('public_key').notNull(), // 用戶的公鑰
   email: text('email').notNull().unique(),
-  publicKey: text('public_key').notNull(),
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
@@ -23,10 +22,11 @@ export const users = sqliteTable('users', {
 export const files = sqliteTable('files', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id),
-  encryptedName: text('encrypted_name').notNull(),
+  originalName: text('original_name').notNull(),
   originalType: text('original_type').notNull(),
   size: integer('size').notNull(),
   iv: text('iv').notNull(), // Store initialization vector for decryption
+  fileKey: text('file_key').notNull(), // Store the encrypted file key
   fileData: blob('file_data').notNull(), // Add file data column to store binary blob
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`)

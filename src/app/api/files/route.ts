@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     
     interface FileResponse {
       id: string;
-      encryptedName: string;
+      originalName: string;
       size: number;
       createdAt: Date;
       iv: string;
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       files: userFiles.map((file) => ({
         id: file.id,
-        encryptedName: file.encryptedName,
+        originalName: file.originalName,
         size: file.size,
         createdAt: new Date(file.createdAt),
         iv: file.iv

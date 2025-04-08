@@ -3,7 +3,7 @@ import { downloadAndDecryptFile } from '@/app/utils/fileHelper';
 
 interface FileItem {
   id: string;
-  encryptedName: string;
+  originalName: string;
   size: number;
   createdAt: string;
 }

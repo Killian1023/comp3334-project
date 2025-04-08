@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
       fileId,
       iv: metadata.iv,
       ivLength: metadata.iv?.length,
-      encryptedNameLength: metadata.encryptedName?.length,
+      fileKey: metadata.fileKey ? 'present' : 'missing',
+      originalName: metadata.originalName,
       type: metadata.originalType
     });
     
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename=${fileId}.enc`,
         'X-Encryption-IV': metadata.iv,
-        'X-Encrypted-Name': metadata.encryptedName,
+        'X-File-Key': metadata.fileKey,
+        'X-Original-Name': metadata.originalName,
         'X-Original-Type': metadata.originalType,
         // Adding cache control to prevent caching issues
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',

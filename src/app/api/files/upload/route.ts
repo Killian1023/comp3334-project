@@ -21,11 +21,12 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const iv = formData.get('iv') as string;
-    const encryptedName = formData.get('encryptedName') as string;
+    const fileKey = formData.get('fileKey') as string;
+    const originalName = formData.get('originalName') as string;
     const originalType = formData.get('originalType') as string;
     const size = parseInt(formData.get('size') as string, 10);
     
-    if (!file || !iv || !encryptedName) {
+    if (!file || !iv || !originalName || !fileKey) {
       return NextResponse.json({ error: 'Missing required file data' }, { status: 400 });
     }
     
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
     // Save the file using our helper
     const { fileId } = await saveEncryptedFile(buffer, userId, {
       iv, 
-      encryptedName, 
+      fileKey,
+      originalName,
       originalType, 
       size
     });

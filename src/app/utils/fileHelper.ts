@@ -1,4 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
+import { generateFileKeyAndIV, bufferToBase64, base64ToBuffer } from './fileKey';
+import { encryptFileKey, getCurrentUserPublicKey, decryptFileKey, getCurrentUserPrivateKey } from './fileKeyEncryption';
 
 /**
  * Client-side file encryption utilities for secure file handling
@@ -116,105 +118,6 @@ export const encryptFile = async (
 /**
  * Decrypt a file after downloading
  */
-export const decryptFile = async (
-  encryptedData: ArrayBuffer,
-  ivBase64: string,
-  encryptedName: string,
-  userId: string
-): Promise<{ decryptedData: ArrayBuffer; filename: string }> => {
-  try {
-    console.log('Starting decryption process...');
-    console.log('IV base64 length:', ivBase64.length);
-    console.log('Encrypted name length:', encryptedName.length);
-    console.log('Encrypted data size:', encryptedData.byteLength);
-    
-    // Get the encryption key
-    const key = await getEncryptionKey(userId);
-    console.log('Retrieved encryption key successfully');
-    
-    // Convert IV from base64 back to Uint8Array using our helper function
-    let ivArray;
-    try {
-      ivArray = base64ToIV(ivBase64);
-      console.log('IV array length after decoding:', ivArray.length);
-    } catch (error) {
-      console.error('Error parsing IV:', error);
-      throw new Error('Invalid IV format');
-    }
-    
-    // Decrypt the file content
-    let decryptedData;
-    try {
-      decryptedData = await window.crypto.subtle.decrypt(
-        {
-          name: 'AES-GCM',
-          iv: ivArray
-        },
-        key,
-        encryptedData
-      );
-      console.log('File decrypted successfully');
-    } catch (decryptError) {
-      console.error('Decryption operation failed:', decryptError);
-      throw new Error('Failed to decrypt file content');
-    }
-    
-    // Decrypt the filename
-    let filename;
-    try {
-      const encryptedFilenameData = Uint8Array.from(atob(encryptedName), c => c.charCodeAt(0));
-      const decryptedFilenameData = await window.crypto.subtle.decrypt(
-        {
-          name: 'AES-GCM',
-          iv: ivArray
-        },
-        key,
-        encryptedFilenameData.buffer
-      );
-      
-      // Convert decrypted filename back to string
-      const decoder = new TextDecoder();
-      filename = decoder.decode(decryptedFilenameData);
-      console.log('Filename decrypted successfully:', filename);
-    } catch (nameError) {
-      console.error('Filename decryption failed:', nameError);
-      // Generate a safe default filename if we can't decrypt the original
-      filename = `decrypted-file-${new Date().getTime()}`;
-    }
-    
-    return { decryptedData, filename };
-  } catch (error) {
-    console.error('File decryption failed:', error);
-    throw new Error('Failed to decrypt file. The encryption key may be invalid.');
-  }
-};
-
-/**
- * Prepare form data with encrypted file for upload
- */
-export const prepareEncryptedFormData = async (file: File, userId: string): Promise<FormData> => {
-  const { encryptedData, iv, encryptedName } = await encryptFile(file, userId);
-  
-  // Create a new file with encrypted data
-  const encryptedFile = new File(
-    [encryptedData], 
-    file.name, // We use original filename here, but it won't be stored as-is
-    { type: 'application/octet-stream' }
-  );
-  
-  const formData = new FormData();
-  formData.append('file', encryptedFile);
-  formData.append('iv', iv);
-  formData.append('encryptedName', encryptedName);
-  formData.append('originalType', file.type);
-  formData.append('size', file.size.toString());
-  
-  return formData;
-};
-
-/**
- * Handle file download and decryption
- */
 export const downloadAndDecryptFile = async (fileId: string, userId: string): Promise<void> => {
   try {
     // Get authentication token
@@ -255,23 +158,36 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string): Pr
     console.log('File blob received, size:', fileData.size);
     
     const iv = response.headers.get('X-Encryption-IV');
-    const encryptedName = response.headers.get('X-Encrypted-Name');
+    const encryptedFileKey = response.headers.get('X-File-Key');  // 获取加密的文件密钥
+    const originalName = response.headers.get('X-Original-Name'); // 获取原始文件名而不是加密的文件名
     
     console.log('Headers received:', { 
       iv: iv ? `${iv.substring(0, 10)}...` : 'missing',
-      encryptedName: encryptedName ? `${encryptedName.substring(0, 10)}...` : 'missing'
+      encryptedFileKey: encryptedFileKey ? 'present' : 'missing',
+      originalName: originalName || 'missing'
     });
     
-    if (!iv || !encryptedName) {
+    if (!iv || !originalName || !encryptedFileKey) {
       throw new Error('Missing encryption metadata in server response');
     }
     
-    // Decrypt the file using our improved helper functions
-    const { decryptedData, filename } = await decryptFile(
+    // 获取用户私钥
+    const privateKey = getCurrentUserPrivateKey();
+    if (!privateKey) {
+      throw new Error('Private key not found. Please log in again.');
+    }
+    
+    // 使用私钥解密文件密钥
+    const fileKey = await decryptFileKey(encryptedFileKey, privateKey);
+    console.log('File key successfully decrypted');
+    // 测试用途：输出解密后的文件密钥
+    console.log('解密后的文件密钥（测试用途）:', fileKey);
+    
+    // 使用解密后的文件密钥解密文件内容（不需要解密文件名）
+    const decryptedData = await decryptFileContent(
       await fileData.arrayBuffer(),
       iv,
-      encryptedName,
-      userId
+      fileKey
     );
     
     // Create a download link for the decrypted file
@@ -279,7 +195,7 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string): Pr
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = filename;
+    a.download = originalName; // 使用原始文件名
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
@@ -295,4 +211,143 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string): Pr
     console.error('Error downloading file:', error);
     throw error;
   }
+};
+
+/**
+ * 只解密文件内容
+ */
+export const decryptFileContent = async (
+  encryptedData: ArrayBuffer,
+  ivBase64: string,
+  fileKey: string
+): Promise<ArrayBuffer> => {
+  try {
+    console.log('Starting decryption with file key...');
+    
+    // Convert IV from base64 back to Uint8Array
+    const ivArray = base64ToBuffer(ivBase64);
+    
+    // Convert fileKey from string to buffer and import it as a CryptoKey
+    const fileKeyArray = base64ToBuffer(fileKey);
+    const cryptoKey = await window.crypto.subtle.importKey(
+      'raw',
+      fileKeyArray,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt']
+    );
+    
+    // Decrypt the file content
+    const decryptedData = await window.crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: ivArray
+      },
+      cryptoKey,
+      encryptedData
+    );
+    
+    console.log('File content decrypted successfully');
+    return decryptedData;
+  } catch (error) {
+    console.error('File decryption failed:', error);
+    throw new Error('Failed to decrypt file. The file key may be invalid.');
+  }
+};
+
+/**
+ * 使用独立文件密钥加密文件以便上传
+ * @param file - 要加密的文件
+ * @returns 包含加密数据、文件密钥和IV的对象
+ */
+export const encryptFileForUpload = async (file: File): Promise<{
+  encryptedData: ArrayBuffer;
+  fileKey: string;
+  iv: string;
+  originalName: string;
+  originalType: string;
+  size: number;
+}> => {
+  try {
+    // 使用fileKey.ts中的函数生成文件密钥和IV
+    const { fileKey, iv } = generateFileKeyAndIV();
+    const ivArray = base64ToBuffer(iv);
+    const fileKeyArray = base64ToBuffer(fileKey);
+    
+    // 读取文件内容
+    const fileContent = await file.arrayBuffer();
+    
+    // 从fileKey导入加密密钥
+    const cryptoKey = await window.crypto.subtle.importKey(
+      'raw',
+      fileKeyArray,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+    
+    // 加密文件内容
+    const encryptedData = await window.crypto.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: ivArray
+      },
+      cryptoKey,
+      fileContent
+    );
+    
+    // 不再加密文件名，直接使用原始文件名
+    const originalName = file.name;
+    
+    return {
+      encryptedData,
+      fileKey,
+      iv,
+      originalName,
+      originalType: file.type,
+      size: file.size
+    };
+  } catch (error) {
+    console.error('文件加密失败:', error);
+    throw new Error('无法加密文件。请重试。');
+  }
+};
+
+/**
+ * 准备加密文件的FormData用于上传（使用独立且加密的文件密钥）
+ */
+export const prepareEncryptedFileUpload = async (file: File): Promise<FormData> => {
+  // 获取加密的文件数据和原始密钥
+  const { encryptedData, fileKey, iv, originalName, originalType, size } = await encryptFileForUpload(file);
+  
+  // 测试用途：输出文件密钥信息
+  console.log('原始文件密钥（测试）:', fileKey);
+  console.log('IV（测试）:', iv);
+  
+  // 获取当前用户的公钥
+  const publicKey = getCurrentUserPublicKey();
+  if (!publicKey) {
+    throw new Error('无法获取用户公钥，请重新登录');
+  }
+  
+  // 使用用户的公钥加密文件密钥
+  const encryptedFileKey = await encryptFileKey(fileKey, publicKey);
+  console.log('文件密钥已使用用户公钥加密');
+  
+  // 创建一个包含加密数据的新文件
+  const encryptedFile = new File(
+    [encryptedData], 
+    `encrypted_${Date.now()}`,
+    { type: 'application/octet-stream' }
+  );
+  
+  const formData = new FormData();
+  formData.append('file', encryptedFile);
+  formData.append('fileKey', encryptedFileKey); // 使用加密后的文件密钥
+  formData.append('iv', iv);
+  formData.append('originalName', originalName);
+  formData.append('originalType', originalType);
+  formData.append('size', size.toString());
+  
+  return formData;
 };
