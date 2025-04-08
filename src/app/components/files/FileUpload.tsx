@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { prepareEncryptedFormData } from '@/lib/fileHelper';
+import { prepareEncryptedFormData } from '@/app/utils/fileHelper';
 
 const FileUpload = () => {
     const [file, setFile] = useState<File | null>(null);

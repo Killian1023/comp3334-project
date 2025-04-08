@@ -47,3 +47,28 @@ email/phone verification code, etc.
 online. If you want to modify a part of this file, find a method that Client does not
 need to encrypt the entire file and submit it again.
 3. Other security designs that you think are necessary.
+
+
+note:
+    /app/lib 是數據庫調用，增刪改查
+    /app/lib/file.ts 文件處理
+    /app/lib/auth.ts 用戶處理
+    /app/lib/logger.ts 日誌處理
+
+upload加fileKey，加密文本，用publicKey加密fileKey，將encryptedFileKey發給後端，存在access table
+後端存publicKey (Michael):
+    /app/api/file/upload 上傳api
+    /app/api/file/download 下載api，需要包括下載共享文件的功能
+    /app/lib/fileHelper 加密及解密文件的function
+    /app/api/auth/getPublicKey 獲取用戶publicKey
+
+註冊生成非對稱密鑰 (Michael)
+    /app/utils/clientencryption 生成用戶publickey & secretkey
+    /app/api/auth/register 註冊，調用/app/lib/auth.ts寫入用戶數據
+
+實現share，前端獲取共享人的publicKey，用自己的privateKey解密encryptedFileKey，用共享人publicKey加密fileKey，將加密fileKey發給後端，存在access table (Eric)
+    /app/api/file/share 共享文件api
+    /app/utils/clientencryption 用戶端加密解密function    
+
+改密碼 (Killian)
+otp (Killian)

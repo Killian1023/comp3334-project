@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { downloadAndDecryptFile } from '@/lib/fileHelper';
+import { downloadAndDecryptFile } from '@/app/utils/fileHelper';
 
 interface FileItem {
   id: string;

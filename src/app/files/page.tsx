@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { prepareEncryptedFormData, downloadAndDecryptFile } from '@/lib/fileHelper';
+import { prepareEncryptedFormData, downloadAndDecryptFile } from '@/app/utils/fileHelper';
 
 interface FileItem {
   id: string;
