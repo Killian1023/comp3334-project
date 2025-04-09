@@ -70,8 +70,18 @@ const LoginPage = () => {
                 password: credentials.password
             });
             
-            // Get a random counter value for HOTP
-            const newCounter = Math.floor(Math.random() * 1000);
+            const counterResponse = await fetch('/api/auth/getCounter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: data.user.id
+                }),
+            });
+            
+            const counterData = await counterResponse.json();
+            const newCounter = counterData.counter;
             setCounter(newCounter);
             
             // Generate HOTP code with the private key and counter
