@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -19,20 +18,26 @@ interface LogEntry {
   level: string;
 }
 
+interface AdminInfo {
+  isAdmin: boolean;
+  username: string;
+  adminId: string;
+}
+
 const AdminPage = () => {
-    const [users, setUsers] = useState<User[]>([]);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError,] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [adminInfo, setAdminInfo] = useState<AdminInfo | null>(null);
     const router = useRouter();
 
     useEffect(() => {
-        // Check if user is admin
+        // Check if user is admin using the admins table
         const checkAdmin = async () => {
             try {
                 const token = localStorage.getItem('authToken');
                 if (!token) {
-                    router.push('/login');
+                    router.push('/login?redirect=/admin');
                     return;
                 }
 
@@ -43,13 +48,16 @@ const AdminPage = () => {
                 });
 
                 if (!response.ok) {
-                    // Redirect non-admin users
+                    console.error('Not authorized as admin');
                     router.push('/');
                     return;
                 }
 
+                const data = await response.json();
+                setAdminInfo(data);
+                
                 // Load admin data
-                loadData();
+                loadLogs();
             } catch (err) {
                 console.error('Error checking admin status:', err);
                 router.push('/login');
@@ -59,38 +67,18 @@ const AdminPage = () => {
         checkAdmin();
     }, [router]);
 
-    const loadData = async () => {
+    const loadLogs = async () => {
         setLoading(true);
         setError(null);
         try {
-            const [usersData, logsData] = await Promise.all([
-                fetchUsers(),
-                fetchLogs()
-            ]);
-            setUsers(usersData);
+            const logsData = await fetchLogs();
             setLogs(logsData);
         } catch (err) {
-            console.error('Error loading admin data:', err);
-            setError('Failed to load data. Please try again.');
+            console.error('Error loading logs:', err);
+            setError('Failed to load logs. Please try again.');
         } finally {
             setLoading(false);
         }
-    };
-
-    const fetchUsers = async (): Promise<User[]> => {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch('/api/admin/users', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch users');
-        }
-
-        const data = await response.json();
-        return data.users;
     };
 
     const fetchLogs = async (): Promise<LogEntry[]> => {
@@ -130,7 +118,7 @@ const AdminPage = () => {
             <div className="p-4 text-red-500">
                 {error}
                 <button 
-                    onClick={loadData} 
+                    onClick={loadLogs} 
                     className="ml-4 px-3 py-1 bg-blue-500 text-white rounded">
                     Retry
                 </button>
@@ -142,43 +130,15 @@ const AdminPage = () => {
         <div className="p-4 max-w-6xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
             
-            <div className="mb-10">
-                <h2 className="text-2xl font-semibold mb-4">User Management</h2>
-                <div className="overflow-x-auto bg-white shadow-md rounded-lg">
-                    <table className="min-w-full table-auto">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="px-4 py-2 text-left">ID</th>
-                                <th className="px-4 py-2 text-left">Username</th>
-                                <th className="px-4 py-2 text-left">Email</th>
-                                <th className="px-4 py-2 text-left">Created At</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(user => (
-                                <tr key={user.id} className="border-t">
-                                    <td className="px-4 py-2">{user.id.substring(0, 8)}...</td>
-                                    <td className="px-4 py-2">{user.username}</td>
-                                    <td className="px-4 py-2">{user.email}</td>
-                                    <td className="px-4 py-2">
-                                        {new Date(user.createdAt).toLocaleString()}
-                                    </td>
-                                </tr>
-                            ))}
-                            {users.length === 0 && (
-                                <tr>
-                                    <td colSpan={4} className="px-4 py-2 text-center">
-                                        No users found
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+            {adminInfo && (
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                    <p>Logged in as admin: <strong>{adminInfo.username}</strong></p>
+                    <p className="text-sm text-gray-500">Admin ID: {adminInfo.adminId}</p>
                 </div>
-            </div>
+            )}
             
             <div>
-                <h2 className="text-2xl font-semibold mb-4">Log Auditing</h2>
+                <h2 className="text-2xl font-semibold mb-4">System Logs</h2>
                 <div className="overflow-x-auto bg-white shadow-md rounded-lg">
                     <table className="min-w-full table-auto">
                         <thead className="bg-gray-100">
@@ -195,7 +155,10 @@ const AdminPage = () => {
                                     <td className="px-4 py-2">
                                         {new Date(log.timestamp).toLocaleString()}
                                     </td>
-                                    <td className={`px-4 py-2 ${log.level === 'error' ? 'text-red-600' : ''}`}>
+                                    <td className={`px-4 py-2 ${
+                                        log.level === 'error' ? 'text-red-600' : 
+                                        log.level === 'warn' ? 'text-yellow-600' : ''
+                                    }`}>
                                         {log.level.toUpperCase()}
                                     </td>
                                     <td className="px-4 py-2">{log.message}</td>
@@ -220,6 +183,14 @@ const AdminPage = () => {
                             )}
                         </tbody>
                     </table>
+                </div>
+                
+                <div className="mt-4 flex justify-end">
+                    <button 
+                        onClick={loadLogs} 
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">
+                        Refresh Logs
+                    </button>
                 </div>
             </div>
         </div>

@@ -61,3 +61,14 @@ export const logs = sqliteTable('logs', {
   metadata: text('metadata'),
   level: text('level').default('info').notNull(),
 });
+
+export const admins = sqliteTable('admins', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id).unique(),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});

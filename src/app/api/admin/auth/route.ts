@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, getUserById } from '../../../../lib/auth';
 import { logAction, logError } from '../../../../lib/logger';
-
-const ADMIN_USERNAMES = ['admin'];  // List of admin usernames
+import { db } from '../../../../db';
+import { admins } from '../../../../db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function GET(request: Request) {
   try {
@@ -19,18 +20,30 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Check if the user is an admin
+    // Check if the user is in the admins table
     const user = await getUserById(userId);
-    if (!user || !ADMIN_USERNAMES.includes(user.username)) {
-      await logAction('Failed admin auth attempt', { userId });
+    if (!user) {
+      await logAction('Failed admin auth attempt - user not found', { userId });
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+    
+    // Query the admins table to check if this user is an admin
+    const adminRecord = await db.select()
+      .from(admins)
+      .where(eq(admins.userId, userId))
+      .limit(1);
+    
+    if (!adminRecord || adminRecord.length === 0) {
+      await logAction('Failed admin auth attempt - not in admin table', { userId, username: user.username });
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    await logAction('Admin authenticated', { userId });
+    await logAction('Admin authenticated', { userId, username: user.username });
     
     return NextResponse.json({
       isAdmin: true,
-      username: user.username
+      username: user.username,
+      adminId: adminRecord[0].id
     });
     
   } catch (error) {
