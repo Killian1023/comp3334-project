@@ -1,88 +1,39 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import PasswordResetForm from '@/app/components/auth/PasswordResetForm';
-import { logAction } from '@/lib/logger';
 
 const ResetPasswordPage = () => {
     const [message, setMessage] = useState<string>('');
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const searchParams = useSearchParams();
-    const token = searchParams.get('token');
     const router = useRouter();
 
-    // Handle email submission for reset link
-    const handleResetRequest = async (email: string): Promise<void> => {
-        try {
-            setIsLoading(true);
-            setMessage('');
-
-            // Call the API to request a password reset
-            const response = await fetch('/api/auth/reset-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessage('Password reset link has been sent to your email.');
-                setStatus('success');
-                console.log('Password reset requested for:', email);
-            } else {
-                setMessage(data.error || 'Failed to send password reset link. Please try again.');
-                setStatus('error');
-            }
-        } catch (error) {
-            console.error('Error requesting password reset:', error);
-            setMessage('An error occurred. Please try again later.');
-            setStatus('error');
-        } finally {
-            setIsLoading(false);
-        }
+    // Handle initial reset request
+    const handleResetRequest = async (usernameOrEmail: string): Promise<void> => {
+        setIsLoading(true);
+        setMessage('');
+        // The actual API call is now handled directly in the form component
+        // This is just a placeholder for compatibility
+        setIsLoading(false);
     };
 
-    // Handle password reset with token
-    const handleResetPassword = async (newPassword: string): Promise<void> => {
-        try {
-            setIsLoading(true);
-            setMessage('');
-
-            // Call the API to reset the password using the token
-            const response = await fetch('/api/auth/reset-password/confirm', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token, newPassword }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessage('Your password has been reset successfully!');
-                setStatus('success');
-                
-                // Redirect to login page after successful reset
-                setTimeout(() => {
-                    router.push('/login');
-                }, 2000);
-            } else {
-                setMessage(data.error || 'Failed to reset password. The link may be invalid or expired.');
-                setStatus('error');
-            }
-        } catch (error) {
-            console.error('Error resetting password:', error);
-            setMessage('An error occurred. Please try again later.');
-            setStatus('error');
-        } finally {
-            setIsLoading(false);
-        }
+    // Handle password reset with HOTP verification
+    const handleResetPassword = async (newPassword: string, hotpCode: string): Promise<void> => {
+        setIsLoading(true);
+        setMessage('');
+        
+        // The actual verification is already handled in the form component
+        setMessage('Your password has been reset successfully!');
+        setStatus('success');
+        
+        // Redirect to login page after successful reset
+        setTimeout(() => {
+            router.push('/login');
+        }, 2000);
+        
+        setIsLoading(false);
     };
 
     return (
@@ -104,7 +55,6 @@ const ResetPasswordPage = () => {
             <PasswordResetForm 
                 onResetRequest={handleResetRequest}
                 onResetPassword={handleResetPassword}
-                showPasswordForm={!!token}
                 isLoading={isLoading}
             />
         </div>

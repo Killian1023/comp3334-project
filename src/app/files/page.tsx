@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { downloadAndDecryptFile, prepareEncryptedFileUpload } from '@/app/utils/fileHelper';
 import FileUpload from '../components/files/FileUpload';
+import Link from 'next/link';
 
 interface FileItem {
   id: string;
@@ -151,6 +152,7 @@ const FilesPage = () => {
             </svg>
             {isLogoutLoading ? 'Logging out...' : 'Log out'}
           </button>
+          <Link href="/reset-password" className="text-sm text-gray-600 hover:text-gray-800">Reset Password</Link>
         </div>
       </div>
       
