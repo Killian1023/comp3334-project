@@ -1,3 +1,7 @@
+import { importJWK, CompactEncrypt, compactDecrypt } from 'jose';
+import { base64ToBuffer, bufferToBase64 } from './fileKey';
+
+
 /**
  * Ensures encryption keys are generated and stored for the user
  * Uses both userId and password to derive a secure encryption key
@@ -99,3 +103,4 @@ export async function generateKeyPairECC(): Promise<KeyPair> {
     throw new Error('Failed to generate key pair');
   }
 }
+

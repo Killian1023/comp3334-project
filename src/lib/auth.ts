@@ -241,3 +241,16 @@ export const resetPassword = async (token: string, newPassword: string): Promise
     return false;
   }
 };
+
+/**
+ * 根據用戶ID獲取用戶的公鑰
+ */
+export const getUserPublicKeyById = async (userId: string): Promise<string | undefined> => {
+  try {
+    const user = await getUserById(userId);
+    return user?.publicKey;
+  } catch (error) {
+    await logError(error as Error, 'getUserPublicKeyById');
+    throw error;
+  }
+};

@@ -5,6 +5,7 @@ export interface User {
     username: string;
     passwordHash: string;
     email: string;
+    publicKey: string; // User's public key
     createdAt: Date;
     updatedAt: Date;
 }

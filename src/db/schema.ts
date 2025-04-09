@@ -10,7 +10,6 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   publicKey: text('public_key').notNull(), // 用戶的公鑰
   email: text('email').notNull().unique(),
-  publicKey: text('public_key').notNull(),
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),

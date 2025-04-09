@@ -72,7 +72,7 @@ upload加fileKey，加密文本，用publicKey加密fileKey，將encryptedFileKe
 實現share，前端獲取共享人的publicKey，用自己的privateKey解密encryptedFileKey，用共享人publicKey加密fileKey，將加密fileKey發給後端，存在access table (Eric)
     /app/api/file/share 共享文件api
     /app/utils/clientencryption 用戶端加密解密function
-    /app/utils/fileKey  
+    /app/utils/fileKey
 
 改密碼 (Killian)
 otp (Killian)
