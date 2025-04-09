@@ -66,15 +66,15 @@ export interface KeyPair {
 
 export async function generateKeyPairECC(): Promise<KeyPair> {
   try {
-    const { publicKey, privateKey } = await generateKeyPair('ES256', {
+    // 使用P-256椭圆曲线和ECDH算法生成密钥对，适用于加密而不是签名
+    const { publicKey, privateKey } = await generateKeyPair('ECDH-ES', {
+      crv: 'P-256',
       extractable: true
     });
     
-
     const publicKeyJwk = await exportJWK(publicKey);
     const privateKeyJwk = await exportJWK(privateKey);
     
-
     if (!publicKeyJwk.x || !publicKeyJwk.y || !privateKeyJwk.d) {
       throw new Error('Invalid key format generated');
     }

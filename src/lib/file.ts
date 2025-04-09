@@ -69,7 +69,8 @@ export const saveEncryptedFile = async (
   userId: string,
   metadata: {
     iv: string;
-    encryptedName: string;
+    fileKey: string;
+    originalName: string;
     originalType: string;
     size: number;
   }
@@ -82,11 +83,12 @@ export const saveEncryptedFile = async (
     await db.insert(schema.files).values({
       id: fileId,
       userId: userId,
-      encryptedName: metadata.encryptedName,
+      originalName: metadata.originalName,
       originalType: metadata.originalType,
       size: metadata.size,
       iv: metadata.iv,
-      fileData: fileBuffer, // Store the file buffer directly in the database
+      fileKey: metadata.fileKey,
+      fileData: fileBuffer,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -138,7 +140,8 @@ export const readEncryptedFile = async (fileId: string, userId: string) => {
       fileBuffer: file.fileData, // Get file data directly from database
       metadata: {
         iv: file.iv,
-        encryptedName: file.encryptedName,
+        fileKey: file.fileKey, // Include fileKey in the response
+        originalName: file.originalName,
         originalType: file.originalType,
         size: file.size
       }

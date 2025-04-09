@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { authenticateUser } from '../../../../lib/auth';
 import { logAction } from '../../../../lib/logger';
 import jwt from 'jsonwebtoken';
+import { db } from '../../../../db';
+import { eq } from 'drizzle-orm';
+import { users } from '../../../../db/schema';
 
 // In a real application, store this in environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development-only';
@@ -23,7 +26,7 @@ const generateToken = (userId: string): string => {
 
 export async function POST(request: Request) {
   try {
-    const { usernameOrEmail, password } = await request.json();
+    const { usernameOrEmail, password, publicKey } = await request.json();
 
     if (!usernameOrEmail || !password) {
       return NextResponse.json(
@@ -42,6 +45,27 @@ export async function POST(request: Request) {
         { message: 'Invalid credentials' },
         { status: 401 }
       );
+    }
+    
+    // 如果提供了公钥，验证它是否匹配
+    if (publicKey && user.publicKey !== publicKey) {
+      await logAction('Login failed: public key mismatch', { userId: user.id });
+      
+      // 对用户来说，他们的私钥可能已经失效或不匹配
+      // 如果客户端提供了公钥但与存储的不匹配，则更新数据库中的公钥
+      await db.update(users)
+        .set({ publicKey })
+        .where(eq(users.id, user.id))
+        .execute();
+      
+      await logAction('User public key updated', { 
+        userId: user.id,
+        oldPublicKey: user.publicKey?.substring(0, 10) + '...',
+        newPublicKey: publicKey.substring(0, 10) + '...'
+      });
+      
+      // 更新用户对象以反映新的公钥
+      user.publicKey = publicKey;
     }
 
     // Generate JWT token with the user ID

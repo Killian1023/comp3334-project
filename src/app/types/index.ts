@@ -5,7 +5,11 @@ export interface User {
     username: string;
     passwordHash: string;
     email: string;
+<<<<<<< HEAD
     publicKey: string; // User's public key
+=======
+    publicKey: string;
+>>>>>>> origin/master
     createdAt: Date;
     updatedAt: Date;
 }

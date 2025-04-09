@@ -5,7 +5,6 @@ import { users } from '../../../../db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { logAction, logError } from '../../../../lib/logger';
 import jwt from 'jsonwebtoken';
-import { generateKeyPairECC } from '@/app/utils/clientencryption';
 
 // Use the same JWT settings as the login route
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development-only';
@@ -29,13 +28,14 @@ export async function POST(request: Request) {
   try {
     await logAction('Registration request received');
     
-    const { username, password, email } = await request.json();
+    // 接收客户端发送的公钥
+    const { username, password, email, publicKey } = await request.json();
     
     // Validation
-    if (!username || !password || !email) {
+    if (!username || !password || !email || !publicKey) {
       await logAction('Registration validation failed', { reason: 'Missing fields' });
       return NextResponse.json({ 
-        message: 'Username, password and email are required',
+        message: 'Username, password, email and public key are required',
         error: 'Missing required fields'
       }, { status: 400 });
     }
@@ -51,8 +51,8 @@ export async function POST(request: Request) {
     }
     
     try {
-      // 生成ECC密钥对
-      const { publicKey, privateKey } = await generateKeyPairECC();
+      // 不再生成密钥对，使用客户端提供的公钥
+      // const { publicKey, privateKey } = await generateKeyPairECC();
       
       // Hash the password
       const passwordHash = await hashPassword(password);
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         username,
         email,
         passwordHash,
-        publicKey,
+        publicKey, // 使用客户端生成的公钥
         createdAt: now,
         updatedAt: now
       }).returning();
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         userId,
         username,
         token,
-        privateKey, // 返回私钥给用户
+        // 不再返回私钥和公钥，客户端已经有了
         expiresIn: JWT_EXPIRES_IN
       }, { status: 201 });
       
