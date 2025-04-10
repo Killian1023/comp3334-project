@@ -133,8 +133,7 @@ const LoginPage = () => {
             
             // Store user info (without sensitive data) and确保公钥来自私钥
             localStorage.setItem('user', JSON.stringify({
-                ...data.user,
-                publicKey: publicKey // 使用从私钥中提取的公钥
+                ...data.user
             }));
 
             // Store user info

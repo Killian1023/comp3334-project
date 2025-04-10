@@ -280,3 +280,88 @@ export const getEncryptedFileKey = async (fileId: string) => {
     throw error;
   }
 }
+
+/**
+ * 根據 fileAccess 返回共享給特定用戶的文件
+ * 此函數讀取共享給用戶的文件內容和為其加密的密鑰
+ */
+export const readSharedFile = async (fileId: string, userId: string) => {
+  try {
+    // 1. 檢查該用戶是否有權訪問這個共享文件
+    const accessRecords = await db
+      .select()
+      .from(schema.fileAccess)
+      .where(
+        and(
+          eq(schema.fileAccess.fileId, fileId),
+          eq(schema.fileAccess.sharedWith, userId)
+        )
+      );
+      
+    if (accessRecords.length === 0) {
+      await logAction(`Unauthorized shared file access attempt: ${fileId}`, { userId });
+      throw new Error('Unauthorized access to this shared file');
+    }
+    
+    const accessRecord = accessRecords[0];
+    
+    // 2. 獲取文件數據
+    const file = await getFileById(fileId);
+    
+    if (!file) {
+      throw new Error('Shared file not found');
+    }
+    
+    await logAction(`Shared file accessed: ${fileId}`, { userId, ownerId: accessRecord.ownerId });
+    
+    // 3. 返回文件內容和該用戶特有的加密文件密鑰
+    return {
+      fileBuffer: file.fileData,
+      metadata: {
+        iv: file.iv,
+        fileKey: accessRecord.encryptedFileKey, // 使用為此用戶特別加密的文件密鑰
+        originalName: file.originalName,
+        originalType: file.originalType,
+        size: file.size,
+        ownerId: accessRecord.ownerId
+      }
+    };
+    
+  } catch (error) {
+    await logError(error as Error, 'readSharedFile');
+    throw error;
+  }
+};
+
+/**
+ * 獲取所有共享給指定用戶的文件列表
+ */
+export const getSharedFilesForUser = async (userId: string) => {
+  try {
+    // 聯合查詢 fileAccess 和 files 表，獲取共享給用戶的所有文件
+    const sharedFiles = await db
+      .select({
+        id: schema.files.id,
+        ownerId: schema.fileAccess.ownerId,
+        originalName: schema.files.originalName,
+        originalType: schema.files.originalType,
+        size: schema.files.size,
+        encryptedFileKey: schema.fileAccess.encryptedFileKey,
+        createdAt: schema.files.createdAt,
+        updatedAt: schema.files.updatedAt
+      })
+      .from(schema.fileAccess)
+      .innerJoin(schema.files, eq(schema.fileAccess.fileId, schema.files.id))
+      .where(eq(schema.fileAccess.sharedWith, userId));
+    
+    await logAction(`Retrieved shared files list for user: ${userId}`, { 
+      count: sharedFiles.length 
+    });
+    
+    return sharedFiles;
+    
+  } catch (error) {
+    await logError(error as Error, 'getSharedFilesForUser');
+    throw error;
+  }
+};

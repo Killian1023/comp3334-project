@@ -118,7 +118,7 @@ export const encryptFile = async (
 /**
  * Decrypt a file after downloading
  */
-export const downloadAndDecryptFile = async (fileId: string, userId: string): Promise<void> => {
+export const downloadAndDecryptFile = async (fileId: string, userId: string, isShare?: string): Promise<void> => {
   try {
     // Get authentication token
     const token = localStorage.getItem('authToken');
@@ -133,7 +133,7 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string): Pr
     headers.append('Authorization', `Bearer ${token}`);
     
     // Fetch the encrypted file and metadata with authorization header
-    const response = await fetch(`/api/files/download?id=${fileId}`, {
+    const response = await fetch(`/api/files/download?id=${fileId}&isShare=${isShare}`, {
       method: 'GET',
       headers: headers,
       credentials: 'same-origin' // Include cookies and HTTP auth credentials

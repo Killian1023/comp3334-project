@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { readEncryptedFile } from '@/lib/file';
+import { readEncryptedFile, readSharedFile } from '@/lib/file';
 import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
@@ -22,9 +22,27 @@ export async function GET(request: NextRequest) {
     if (!fileId) {
       return NextResponse.json({ error: 'File ID is required' }, { status: 400 });
     }
+
+    const isShare = request.nextUrl.searchParams.get('isShare');
+    if (!isShare) {
+      return NextResponse.json({ error: 'isShare is required' }, { status: 400 });
+    }
     
-    // Get the file using our helper
-    const { fileBuffer, metadata } = await readEncryptedFile(fileId, userId);
+    // 宣告變數在條件區塊外
+    let fileBuffer;
+    let metadata;
+    
+    if (isShare === 'false') {
+      // Get the file using our helper
+      const result = await readEncryptedFile(fileId, userId);
+      fileBuffer = result.fileBuffer;
+      metadata = result.metadata;
+    } else {
+      // Get the file using our helper
+      const result = await readSharedFile(fileId, userId);
+      fileBuffer = result.fileBuffer;
+      metadata = result.metadata;
+    }
     
     // Log the metadata to ensure it's correct
     console.log('Sending file download with metadata:', {

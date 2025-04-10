@@ -6,6 +6,7 @@ import { downloadAndDecryptFile } from '@/app/utils/fileHelper';
 import { logoutUser, getCurrentUser, getAuthToken, isAuthenticated } from '@/app/utils/authUtils';
 import FileUpload from '../components/files/FileUpload';
 import Link from 'next/link';
+import { getCurrentUserPrivateKey, decryptFileKey, encryptFileKey } from '../utils/fileKeyEncryption';
 
 interface FileItem {
   id: string;
@@ -13,6 +14,8 @@ interface FileItem {
   size: number;
   createdAt: string;
   iv?: string;
+  ownerId?: string;
+  ownerName?: string;
 }
 
 interface ShareUser {
@@ -23,11 +26,13 @@ interface ShareUser {
 
 const FilesPage = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [sharedFiles, setSharedFiles] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingShared, setIsLoadingShared] = useState(false);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('myFiles');
   const [isLogoutLoading, setIsLogoutLoading] = useState(false);
   const [isSharingFile, setIsSharingFile] = useState<string | null>(null);
-  // 添加共享相關狀態
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUsers, setShareUsers] = useState<ShareUser[]>([]);
   const [currentFileId, setCurrentFileId] = useState<string>('');
@@ -35,12 +40,10 @@ const FilesPage = () => {
   
   const router = useRouter();
   
-  // Edit functionality states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [fileToEdit, setFileToEdit] = useState<FileItem | null>(null);
   
   useEffect(() => {
-    // Redirect to login if not authenticated
     const token = getAuthToken();
     const user = getCurrentUser();
     
@@ -49,8 +52,8 @@ const FilesPage = () => {
       return;
     }
     
-    // Fetch user's files
     fetchFiles();
+    fetchSharedFiles();
   }, [router]);
   
   const fetchFiles = async () => {
@@ -78,8 +81,33 @@ const FilesPage = () => {
       setIsLoading(false);
     }
   };
+
+  const fetchSharedFiles = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    
+    try {
+      setIsLoadingShared(true);
+      const response = await fetch('/api/files/share-file-list', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSharedFiles(data.files);
+      } else {
+        console.error('Failed to fetch shared files list');
+      }
+    } catch (error) {
+      console.error('An error occurred while fetching shared files', error);
+    } finally {
+      setIsLoadingShared(false);
+    }
+  };
   
-  const handleDownload = async (fileId: string) => {
+  const handleDownload = async (fileId: string, isShare?: string) => {
     const user = getCurrentUser();
     const token = getAuthToken();
     
@@ -91,9 +119,8 @@ const FilesPage = () => {
     
     try {
       setIsLoading(true);
-      await downloadAndDecryptFile(fileId, user.id);
+      await downloadAndDecryptFile(fileId, user.id, isShare);
     } catch (error) {
-      // Provide more informative error messages
       const errorMessage = (error as Error).message;
       if (errorMessage.includes('Authentication token')) {
         setError('Your session has expired. Please log in again');
@@ -122,8 +149,7 @@ const FilesPage = () => {
       setCurrentFileId(fileId);
       setLoadingShareList(true);
       
-      // 調用 getShareList 獲取可共享的用戶列表
-      const response = await fetch(`/api/files/share-list?fileId=${fileId}`, {
+      const response = await fetch(`/api/files/share-user-list?fileId=${fileId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -154,7 +180,6 @@ const FilesPage = () => {
     if (!token || !currentFileId) return;
     
     try {
-
       setIsLoading(true);
 
       const publicKeyResponse = await fetch(`/api/users/public-key?userId=${userId}`, {
@@ -198,8 +223,6 @@ const FilesPage = () => {
       
       const encryptedFileKey = await encryptFileKey(decryptedFileKey, publicKey);
       
-
-      // 調用 API 實現文件共享
       const response = await fetch('/api/files/share', {
         method: 'POST',
         headers: {
@@ -245,7 +268,6 @@ const FilesPage = () => {
     
     try {
       await logoutUser();
-      // Navigate to login page after successful logout
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -260,9 +282,12 @@ const FilesPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">Your Encrypted Files</h1>
         <div className="flex items-center space-x-4">
           <button 
-            onClick={fetchFiles} 
+            onClick={() => {
+              fetchFiles();
+              fetchSharedFiles();
+            }} 
             className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-            disabled={isLoading}
+            disabled={isLoading || isLoadingShared}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -319,74 +344,170 @@ const FilesPage = () => {
         
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800">File List</h2>
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('myFiles')}
+                className={`flex-1 py-3 px-4 text-center font-medium text-sm ${
+                  activeTab === 'myFiles'
+                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                我的檔案
+              </button>
+              <button
+                onClick={() => setActiveTab('sharedFiles')}
+                className={`flex-1 py-3 px-4 text-center font-medium text-sm ${
+                  activeTab === 'sharedFiles'
+                    ? 'border-b-2 border-blue-500 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                分享給我的檔案
+                {sharedFiles.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                    {sharedFiles.length}
+                  </span>
+                )}
+              </button>
             </div>
             
-            {isLoading ? (
-              <div className="p-8 text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                <p className="text-gray-500">Loading files...</p>
-              </div>
-            ) : files.length > 0 ? (
-              <div className="divide-y divide-gray-200">
-                {files.map(file => (
-                  <div key={file.id} className="p-6 hover:bg-gray-50 transition-colors duration-150">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center mb-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <span className="font-medium text-gray-800">{file.originalName}</span>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          Size: {(file.size / 1024).toFixed(2)} KB
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Uploaded: {new Date(file.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleEdit(file)}
-                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                          disabled={isLoading}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDownload(file.id)}
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                          disabled={isLoading}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                          Download
-                        </button>
-                      </div>
-                    </div>
+            {activeTab === 'myFiles' && (
+              <>
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <h2 className="text-xl font-semibold text-gray-800">我的檔案</h2>
+                </div>
+                
+                {isLoading ? (
+                  <div className="p-8 text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                    <p className="text-gray-500">載入檔案中...</p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-8 text-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-gray-500 mb-2">You haven't uploaded any files yet</p>
-                <p className="text-sm text-gray-400">Use the upload area on the left to add your first encrypted file</p>
-              </div>
+                ) : files.length > 0 ? (
+                  <div className="divide-y divide-gray-200">
+                    {files.map(file => (
+                      <div key={file.id} className="p-6 hover:bg-gray-50 transition-colors duration-150">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center mb-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="font-medium text-gray-800">{file.originalName}</span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              Size: {(file.size / 1024).toFixed(2)} KB
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Uploaded: {new Date(file.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEdit(file)}
+                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                              disabled={isLoading}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleShare(file.id)}
+                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                              disabled={isLoading || isSharingFile === file.id}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                              </svg>
+                              Share
+                            </button>
+                            <button
+                              onClick={() => handleDownload(file.id, "false")}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                              disabled={isLoading}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="text-gray-500 mb-2">您尚未上傳任何檔案</p>
+                    <p className="text-sm text-gray-400">使用左側上傳區域加入您的第一個加密檔案</p>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {activeTab === 'sharedFiles' && (
+              <>
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <h2 className="text-xl font-semibold text-gray-800">分享給我的檔案</h2>
+                </div>
+                
+                {isLoadingShared ? (
+                  <div className="p-8 text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                    <p className="text-gray-500">載入分享檔案中...</p>
+                  </div>
+                ) : sharedFiles.length > 0 ? (
+                  <div className="divide-y divide-gray-200">
+                    {sharedFiles.map(file => (
+                      <div key={file.id} className="p-6 hover:bg-gray-50 transition-colors duration-150">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center mb-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                              </svg>
+                              <span className="font-medium text-gray-800">{file.originalName}</span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              Size: {(file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleDownload(file.id,"true")}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                              disabled={isLoading}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    <p className="text-gray-500 mb-2">目前沒有分享給您的檔案</p>
+                    <p className="text-sm text-gray-400">當其他用戶與您共享檔案後，將會顯示在這裡</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
       </div>
 
-      {/* Edit File Modal */}
       {isEditModalOpen && fileToEdit && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
@@ -415,6 +536,54 @@ const FilesPage = () => {
                 isEdit={true} 
                 fileToEdit={fileToEdit}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Share File
+              </h3>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Select a user to share the file with.
+              </p>
+              {loadingShareList ? (
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                  <p className="text-gray-500">Loading users...</p>
+                </div>
+              ) : (
+                <ul className="space-y-4">
+                  {shareUsers.map(user => (
+                    <li key={user.id} className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{user.username}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                      <button
+                        onClick={() => handleShareWithUser(user.id)}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                      >
+                        Share
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>
