@@ -108,37 +108,6 @@ export const deleteUser = async (id: string): Promise<void> => {
 };
 
 /**
- * Create a new user
- */
-export const createUser = async (userData: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User> => {
-  try {
-    const now = new Date().toISOString();
-    // Create DB representation with string dates
-    const dbUser = {
-      id: uuidv4(),
-      ...userData,
-      createdAt: now,
-      updatedAt: now,
-    };
-    
-    await db.insert(schema.users).values(dbUser);
-    
-    // Convert to User type with Date objects before returning
-    const newUser: User = {
-      ...dbUser,
-      createdAt: new Date(now),
-      updatedAt: new Date(now),
-    };
-    
-    await logAction(`User created: ${newUser.id}`, { username: userData.username });
-    return newUser;
-  } catch (error) {
-    await logError(error as Error, 'createUser');
-    throw error;
-  }
-};
-
-/**
  * Verify if a password matches the stored hash
  */
 export const verifyPassword = async (password: string, hashedPassword: string): Promise<boolean> => {
@@ -209,38 +178,6 @@ export const verifyToken = (token: string): string | null => {
   }
 };
 
-/**
- * Request password reset
- */
-export const requestPasswordReset = async (email: string): Promise<boolean> => {
-  try {
-    const user = await getUserByEmail(email);
-    if (!user) {
-      return false;
-    }
-    
-    // In a real app, you would generate a token and send an email here
-    await logAction(`Password reset requested for user: ${user.id}`);
-    return true;
-  } catch (error) {
-    await logError(error as Error, 'requestPasswordReset');
-    return false;
-  }
-};
-
-/**
- * Validate and process password reset
- */
-export const resetPassword = async (token: string, newPassword: string): Promise<boolean> => {
-  try {
-    // In a real app, you would validate the token and update the password
-    await logAction(`Password reset processed with token: ${token.substring(0, 8)}...`);
-    return true;
-  } catch (error) {
-    await logError(error as Error, 'resetPassword');
-    return false;
-  }
-};
 
 /**
  * 根據用戶ID獲取用戶的公鑰
