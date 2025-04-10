@@ -2,15 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { downloadAndDecryptFile, prepareEncryptedFileUpload } from '@/app/utils/fileHelper';
+import { downloadAndDecryptFile } from '@/app/utils/fileHelper';
+import { logoutUser, getCurrentUser, getAuthToken, isAuthenticated } from '@/app/utils/authUtils';
 import FileUpload from '../components/files/FileUpload';
-import { getCurrentUserPrivateKey, decryptFileKey, encryptFileKey } from '@/app/utils/fileKeyEncryption';
+import Link from 'next/link';
 
 interface FileItem {
   id: string;
   originalName: string;
   size: number;
-  createdAt: string;  
+  createdAt: string;
+  iv?: string;
 }
 
 interface ShareUser {
@@ -33,18 +35,9 @@ const FilesPage = () => {
   
   const router = useRouter();
   
-  // Get current user from local storage
-  const getCurrentUser = () => {
-    try {
-      const userStr = localStorage.getItem('user');
-      return userStr ? JSON.parse(userStr) : null;
-    } catch (e) {
-      return null;
-    }
-  };
-  
-  // Get auth token
-  const getAuthToken = () => localStorage.getItem('authToken');
+  // Edit functionality states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [fileToEdit, setFileToEdit] = useState<FileItem | null>(null);
   
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -235,24 +228,24 @@ const FilesPage = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleEdit = (file: FileItem) => {
+    setFileToEdit(file);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditModalOpen(false);
+    setFileToEdit(null);
+    fetchFiles();
+    setError('');
+  };
+
+  const handleLogout = async () => {
     setIsLogoutLoading(true);
     
     try {
-      // Clear all user-related data from localStorage
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('privateKey');
-      
-      // Clear any encryption keys
-      const allKeys = Object.keys(localStorage);
-      allKeys.forEach(key => {
-        if (key.startsWith('encryptionKey_')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Navigate to login page
+      await logoutUser();
+      // Navigate to login page after successful logout
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -286,6 +279,7 @@ const FilesPage = () => {
             </svg>
             {isLogoutLoading ? 'Logging out...' : 'Log out'}
           </button>
+          <Link href="/reset-password" className="text-sm text-gray-600 hover:text-gray-800">Reset Password</Link>
         </div>
       </div>
       
@@ -355,6 +349,16 @@ const FilesPage = () => {
                       </div>
                       <div className="flex space-x-2">
                         <button
+                          onClick={() => handleEdit(file)}
+                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                          disabled={isLoading}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </button>
+                        <button
                           onClick={() => handleDownload(file.id)}
                           className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                           disabled={isLoading}
@@ -362,17 +366,7 @@ const FilesPage = () => {
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                           </svg>
-                          Download & Decrypt
-                        </button>
-                        <button
-                          onClick={() => handleShare(file.id)}
-                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                          disabled={isSharingFile === file.id}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-4.553a1 1 0 00-1.414-1.414L13.586 8.586a1 1 0 000 1.414L18.14 14.14a1 1 0 001.414-1.414L15 10zM9 14l-4.553 4.553a1 1 0 001.414 1.414L10.414 15.414a1 1 0 000-1.414L5.86 9.86a1 1 0 00-1.414 1.414L9 14z" />
-                          </svg>
-                          {isSharingFile === file.id ? 'Sharing...' : 'Share'}
+                          Download
                         </button>
                       </div>
                     </div>
@@ -391,62 +385,36 @@ const FilesPage = () => {
           </div>
         </div>
       </div>
-      
-      {/* 共享用戶模態框 */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">選擇要共享的用戶</h3>
+
+      {/* Edit File Modal */}
+      {isEditModalOpen && fileToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Edit File: {fileToEdit.originalName}
+              </h3>
               <button
-                onClick={() => setShowShareModal(false)}
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setFileToEdit(null);
+                }}
                 className="text-gray-400 hover:text-gray-500"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            
-            <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
-              {loadingShareList ? (
-                <div className="py-8 text-center">
-                  <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
-                  <p className="text-gray-500">正在加載用戶列表...</p>
-                </div>
-              ) : shareUsers.length > 0 ? (
-                <ul className="divide-y divide-gray-200">
-                  {shareUsers.map(user => (
-                    <li key={user.id} className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-800">{user.username}</h4>
-                          <p className="text-sm text-gray-500">{user.email}</p>
-                        </div>
-                        <button
-                          onClick={() => handleShareWithUser(user.id)}
-                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md transition-colors duration-150"
-                        >
-                          共享
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="py-8 text-center">
-                  <p className="text-gray-500">沒有可供共享的用戶</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end">
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md text-sm transition-colors duration-150"
-              >
-                關閉
-              </button>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Upload a new version of this file. The file will be encrypted before uploading.
+              </p>
+              <FileUpload 
+                onFileUploaded={handleEditSuccess} 
+                isEdit={true} 
+                fileToEdit={fileToEdit}
+              />
             </div>
           </div>
         </div>

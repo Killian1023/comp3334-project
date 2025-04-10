@@ -1,112 +1,78 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import PasswordResetForm from '@/app/components/auth/PasswordResetForm';
-import { logAction } from '@/lib/logger';
+import Link from 'next/link';
 
 const ResetPasswordPage = () => {
     const [message, setMessage] = useState<string>('');
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const searchParams = useSearchParams();
-    const token = searchParams.get('token');
     const router = useRouter();
 
-    // Handle email submission for reset link
-    const handleResetRequest = async (email: string): Promise<void> => {
-        try {
-            setIsLoading(true);
-            setMessage('');
-
-            // Call the API to request a password reset
-            const response = await fetch('/api/auth/reset-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessage('Password reset link has been sent to your email.');
-                setStatus('success');
-                console.log('Password reset requested for:', email);
-            } else {
-                setMessage(data.error || 'Failed to send password reset link. Please try again.');
-                setStatus('error');
-            }
-        } catch (error) {
-            console.error('Error requesting password reset:', error);
-            setMessage('An error occurred. Please try again later.');
-            setStatus('error');
-        } finally {
-            setIsLoading(false);
-        }
+    // Handle initial reset request
+    const handleResetRequest = async (usernameOrEmail: string): Promise<void> => {
+        setIsLoading(true);
+        setMessage('');
+        // The actual API call is now handled directly in the form component
+        // This is just a placeholder for compatibility
+        setIsLoading(false);
     };
 
-    // Handle password reset with token
-    const handleResetPassword = async (newPassword: string): Promise<void> => {
-        try {
-            setIsLoading(true);
-            setMessage('');
-
-            // Call the API to reset the password using the token
-            const response = await fetch('/api/auth/reset-password/confirm', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token, newPassword }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                setMessage('Your password has been reset successfully!');
-                setStatus('success');
-                
-                // Redirect to login page after successful reset
-                setTimeout(() => {
-                    router.push('/login');
-                }, 2000);
-            } else {
-                setMessage(data.error || 'Failed to reset password. The link may be invalid or expired.');
-                setStatus('error');
-            }
-        } catch (error) {
-            console.error('Error resetting password:', error);
-            setMessage('An error occurred. Please try again later.');
-            setStatus('error');
-        } finally {
-            setIsLoading(false);
-        }
+    // Handle password reset with HOTP verification
+    const handleResetPassword = async (newPassword: string, hotpCode: string): Promise<void> => {
+        setIsLoading(true);
+        setMessage('');
+        
+        // The actual verification is already handled in the form component
+        setMessage('Your password has been reset successfully!');
+        setStatus('success');
+        
+        // Redirect to login page after successful reset
+        setTimeout(() => {
+            router.push('/login');
+        }, 2000);
+        
+        setIsLoading(false);
     };
 
     return (
-        <div className="container mx-auto p-4 max-w-md">
-            <h1 className="text-2xl font-bold mb-6 text-center">Reset Password</h1>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
+                <div className="flex items-center space-x-4">
+                    <Link href="/login" className="text-sm text-blue-600 hover:text-blue-800">
+                        Back to Login
+                    </Link>
+                </div>
+            </div>
             
             {status === 'success' && (
-                <div className="bg-green-100 border-l-4 border-green-500 p-4 mb-4 text-green-700">
-                    {message}
+                <div className="mb-6 bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-md shadow-sm">
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm">{message}</p>
+                        </div>
+                    </div>
                 </div>
             )}
             
-            {status === 'error' && (
-                <div className="bg-red-100 border-l-4 border-red-500 p-4 mb-4 text-red-700">
-                    {message}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div className="lg:col-span-2">
+                    <PasswordResetForm 
+                        onResetRequest={handleResetRequest}
+                        onResetPassword={handleResetPassword}
+                        isLoading={isLoading}
+                    />
                 </div>
-            )}
-            
-            <PasswordResetForm 
-                onResetRequest={handleResetRequest}
-                onResetPassword={handleResetPassword}
-                showPasswordForm={!!token}
-                isLoading={isLoading}
-            />
+            </div>
         </div>
     );
 };

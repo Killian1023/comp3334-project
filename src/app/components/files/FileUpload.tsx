@@ -2,11 +2,22 @@ import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { prepareEncryptedFileUpload } from '@/app/utils/fileHelper';
 
-interface FileUploadProps {
-  onFileUploaded?: () => void; // 添加回调属性，用于通知父组件文件上传成功
+// Define FileItem interface
+interface FileItem {
+  id: string;
+  originalName: string;
+  size: number;
+  createdAt: string;
+  iv?: string;
 }
 
-const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
+interface FileUploadProps {
+  onFileUploaded?: () => void;
+  isEdit?: boolean;
+  fileToEdit?: FileItem;
+}
+
+const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, isEdit = false, fileToEdit }) => {
     const [file, setFile] = useState<File | null>(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -14,6 +25,10 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Set action text based on whether we're editing or uploading
+    const actionText = isEdit ? 'Update' : 'Upload';
+    const titleText = isEdit ? `Update File: ${fileToEdit?.originalName}` : 'Secure File Upload';
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -91,10 +106,20 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
             // Add user ID
             formData.append('userId', user.id);
             
+            // If we're editing, add the fileId to the form data
+            if (isEdit && fileToEdit) {
+                formData.append('fileId', fileToEdit.id);
+            }
+            
             setUploadProgress(50);
             
+            // Use different endpoints for edit vs. upload
+            const uploadEndpoint = isEdit 
+                ? '/api/files/edit' 
+                : '/api/files/upload';
+            
             // Upload encrypted file
-            const response = await axios.post('/api/files/upload', formData, {
+            const response = await axios.post(uploadEndpoint, formData, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 },
@@ -109,20 +134,20 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
             });
             
             setUploadProgress(100);
-            setSuccess('File encrypted and uploaded successfully!');
+            setSuccess(`File ${isEdit ? 'updated' : 'encrypted and uploaded'} successfully!`);
             setFile(null);
             
             // Reset file input
             if (fileInputRef.current) fileInputRef.current.value = '';
             
-            // 调用回调函数通知父组件文件上传成功
+            // Call callback function to notify parent component
             if (onFileUploaded) {
                 onFileUploaded();
             }
             
         } catch (err) {
-            console.error('Upload error:', err);
-            setError('Error encrypting or uploading file. Please try again');
+            console.error(`${isEdit ? 'Update' : 'Upload'} error:`, err);
+            setError(`Error ${isEdit ? 'updating' : 'encrypting or uploading'} file. Please try again`);
         } finally {
             setTimeout(() => {
                 if (uploadProgress === 100) {
@@ -139,7 +164,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
 
     return (
         <div className="bg-white rounded-lg shadow-md p-6 transition-all duration-300">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Secure File Upload</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">{titleText}</h3>
             
             <div 
                 className={`border-2 border-dashed p-8 rounded-lg mb-4 text-center cursor-pointer transition-all duration-300 ${
@@ -187,7 +212,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
                         </div>
                     ) : (
                         <div>
-                            <p className="text-gray-700 font-medium">Drag and drop file here or click to browse</p>
+                            <p className="text-gray-700 font-medium">
+                                {isEdit 
+                                    ? "Drag and drop new version here or click to browse" 
+                                    : "Drag and drop file here or click to browse"}
+                            </p>
                             <p className="text-sm text-gray-500 mt-1">Files are encrypted in your browser before upload</p>
                         </div>
                     )}
@@ -226,7 +255,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded }) => {
                         : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
                 }`}
             >
-                {isUploading ? 'Processing...' : 'Secure Upload'}
+                {isUploading ? 'Processing...' : isEdit ? 'Update File' : 'Secure Upload'}
             </button>
             
             {error && (

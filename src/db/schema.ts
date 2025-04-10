@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, blob } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+import { count } from 'console';
 
 
 // User表加一個public key
@@ -9,6 +10,7 @@ export const users = sqliteTable('users', {
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
   publicKey: text('public_key').notNull(), // 用戶的公鑰
+  counter: integer('counter').default(0).notNull(),
   email: text('email').notNull().unique(),
   createdAt: text('created_at')
     .default(sql`CURRENT_TIMESTAMP`)
@@ -58,4 +60,15 @@ export const logs = sqliteTable('logs', {
   message: text('message').notNull(),
   metadata: text('metadata'),
   level: text('level').default('info').notNull(),
+});
+
+export const admins = sqliteTable('admins', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id).unique(),
+  createdAt: text('created_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: text('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });

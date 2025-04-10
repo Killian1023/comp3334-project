@@ -1,37 +1,36 @@
 import { NextResponse } from 'next/server';
 import { db } from '../../../../db';
-import { logs } from '../../../../db/schema';
-import { verifyToken, getUserById } from '../../../../lib/auth';
+import { logs, admins } from '../../../../db/schema';
+import { getUserById } from '../../../../lib/auth';
 import { logAction, logError } from '../../../../lib/logger';
-import { desc } from 'drizzle-orm';
-
-const ADMIN_USERNAMES = ['admin'];  // List of admin usernames
+import { desc, eq } from 'drizzle-orm';
 
 /**
- * Check if a user is an admin
+ * Check if a user is an admin by looking up the admins table
  */
 async function isAdmin(userId: string): Promise<boolean> {
   try {
-    const user = await getUserById(userId);
-    return user ? ADMIN_USERNAMES.includes(user.username) : false;
+    // Query the admins table to check if this user is an admin
+    const adminRecord = await db.select()
+      .from(admins)
+      .where(eq(admins.userId, userId))
+      .limit(1);
+    
+    return adminRecord && adminRecord.length > 0;
   } catch (error) {
+    console.error("Error checking admin status:", error);
     return false;
   }
 }
 
 export async function GET(request: Request) {
   try {
-    // Extract and verify the authorization token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const userId = verifyToken(token);
+    // Get the user ID from request headers that was set by middleware
+    const userId = request.headers.get('x-user-id');
     
     if (!userId) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      // This shouldn't happen if middleware is working correctly
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
     }
 
     // Check if the user is an admin
@@ -47,7 +46,8 @@ export async function GET(request: Request) {
       .orderBy(desc(logs.timestamp))
       .limit(100);  // Limit to most recent 100 logs
     
-    await logAction('Admin viewed logs', { userId });
+    const user = await getUserById(userId);
+    await logAction('Admin viewed logs', { userId, username: user?.username });
     
     return NextResponse.json({
       logs: logEntries

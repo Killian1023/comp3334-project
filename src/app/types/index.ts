@@ -6,6 +6,7 @@ export interface User {
     passwordHash: string;
     email: string;
     publicKey: string;
+    counter: number;
     createdAt: Date;
     updatedAt: Date;
 }
