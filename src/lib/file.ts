@@ -105,6 +105,57 @@ export const saveEncryptedFile = async (
 };
 
 /**
+ * Update an existing encrypted file
+ */
+export const updateEncryptedFile = async (
+  fileBuffer: Buffer, 
+  fileId: string,
+  userId: string,
+  metadata: {
+    iv: string;
+    fileKey: string;
+    originalName: string;
+    originalType: string;
+    size: number;
+  }
+) => {
+  try {
+    // First check if file exists and belongs to the user
+    const file = await getFileById(fileId);
+    if (!file) {
+      throw new Error('File not found');
+    }
+    
+    if (file.userId !== userId) {
+      await logAction(`Unauthorized file edit attempt: ${fileId}`, { userId });
+      throw new Error('Unauthorized to edit this file');
+    }
+    
+    // Update file data and metadata in the database
+    await db.update(schema.files)
+      .set({
+        originalName: metadata.originalName,
+        originalType: metadata.originalType,
+        size: metadata.size,
+        iv: metadata.iv,
+        fileKey: metadata.fileKey,
+        fileData: fileBuffer,
+        updatedAt: new Date().toISOString()
+      })
+      .where(eq(schema.files.id, fileId));
+    
+    await logAction(`File updated: ${fileId}`, { userId, size: metadata.size });
+    
+    return {
+      fileId
+    };
+  } catch (error) {
+    await logError(error as Error, 'updateEncryptedFile');
+    throw error;
+  }
+};
+
+/**
  * Check if a user is authorized to access a file
  */
 export const isAuthorizedForFile = async (fileId: string, userId: string): Promise<boolean> => {

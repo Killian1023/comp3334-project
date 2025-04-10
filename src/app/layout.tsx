@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "User Management System",
-  description: "A secure file sharing application with user management",
+  title: "File Management System",
+  description: "A secure file sharing application",
 };
 
 export default function RootLayout({

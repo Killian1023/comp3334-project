@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { downloadAndDecryptFile, prepareEncryptedFileUpload } from '@/app/utils/fileHelper';
+import { downloadAndDecryptFile } from '@/app/utils/fileHelper';
 import FileUpload from '../components/files/FileUpload';
 import Link from 'next/link';
 
@@ -11,6 +11,7 @@ interface FileItem {
   originalName: string;
   size: number;
   createdAt: string;
+  iv?: string;
 }
 
 const FilesPage = () => {
@@ -19,6 +20,10 @@ const FilesPage = () => {
   const [error, setError] = useState('');
   const [isLogoutLoading, setIsLogoutLoading] = useState(false);
   const router = useRouter();
+  
+  // Edit functionality states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [fileToEdit, setFileToEdit] = useState<FileItem | null>(null);
   
   // Get current user from local storage
   const getCurrentUser = () => {
@@ -99,6 +104,18 @@ const FilesPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEdit = (file: FileItem) => {
+    setFileToEdit(file);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setIsEditModalOpen(false);
+    setFileToEdit(null);
+    fetchFiles();
+    setError('');
   };
 
   const handleLogout = () => {
@@ -220,16 +237,28 @@ const FilesPage = () => {
                           Uploaded: {new Date(file.createdAt).toLocaleString()}
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleDownload(file.id)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        disabled={isLoading}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Download & Decrypt
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(file)}
+                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                          disabled={isLoading}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDownload(file.id)}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          disabled={isLoading}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                          Download
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -246,6 +275,40 @@ const FilesPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit File Modal */}
+      {isEditModalOpen && fileToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Edit File: {fileToEdit.originalName}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsEditModalOpen(false);
+                  setFileToEdit(null);
+                }}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Upload a new version of this file. The file will be encrypted before uploading.
+              </p>
+              <FileUpload 
+                onFileUploaded={handleEditSuccess} 
+                isEdit={true} 
+                fileToEdit={fileToEdit}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
