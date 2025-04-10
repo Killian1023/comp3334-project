@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import RegisterForm from '@/app/components/auth/RegisterForm';
 import { useRouter } from 'next/navigation';
-import { ensureEncryptionKeys, generateKeyPairECC, KeyPair } from '@/app/utils/clientencryption';
+import { generateKeyPairECC, KeyPair } from '@/app/utils/clientencryption';
 
 type RegisterData = {
   username: string;
@@ -67,12 +67,6 @@ const RegisterPage = () => {
             
             // Store private key securely
             localStorage.setItem('privateKey', keyPair.privateKey);
-            
-            // Generate and store encryption keys using the centralized function
-            await ensureEncryptionKeys(responseData.userId, data.password);
-            
-            // Log success
-            console.log('User registered and logged in successfully');
             
             return true;
             

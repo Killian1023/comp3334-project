@@ -15,6 +15,7 @@ interface FileListProps {
 
 const FileList = ({ files, onRefresh }: FileListProps) => {
     const [isDownloading, setIsDownloading] = useState<string | null>(null);
+    const [isSharing, setIsSharing] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     
     // Get current user ID from local storage
@@ -47,6 +48,28 @@ const FileList = ({ files, onRefresh }: FileListProps) => {
             setError(`Failed to download file: ${(err as Error).message}`);
         } finally {
             setIsDownloading(null);
+        }
+    };
+    
+    const handleShare = async (fileId: string) => {
+        const userId = getCurrentUserId();
+        if (!userId) {
+            setError('Please log in to share files');
+            return;
+        }
+        
+        setIsSharing(fileId);
+        setError(null);
+        
+        try {
+            // 這裡將實現檔案共享功能
+            // 目前只是一個佔位提示
+            alert(`準備共享檔案 ID: ${fileId}`);
+        } catch (err) {
+            console.error('Sharing error:', err);
+            setError(`Failed to share file: ${(err as Error).message}`);
+        } finally {
+            setIsSharing(null);
         }
     };
 
@@ -90,12 +113,21 @@ const FileList = ({ files, onRefresh }: FileListProps) => {
                             <td className="py-2 px-4 border-b">
                                 <button
                                     onClick={() => handleDownload(file.id)}
-                                    disabled={isDownloading !== null}
+                                    disabled={isDownloading !== null || isSharing !== null}
                                     className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded mr-2 disabled:bg-gray-400"
                                 >
                                     {isDownloading === file.id 
                                         ? 'Decrypting...' 
                                         : 'Download & Decrypt'}
+                                </button>
+                                <button
+                                    onClick={() => handleShare(file.id)}
+                                    disabled={isDownloading !== null || isSharing !== null}
+                                    className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded disabled:bg-gray-400"
+                                >
+                                    {isSharing === file.id 
+                                        ? '共享中...' 
+                                        : '共享'}
                                 </button>
                             </td>
                         </tr>

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoginForm from '@/app/components/auth/LoginForm';
-import { ensureEncryptionKeys } from '@/app/utils/clientencryption';
 
 // 从私钥中提取公钥信息
 function extractPublicKeyFromPrivate(privateKeyBase64: string): string | null {
@@ -92,10 +91,7 @@ const LoginPage = () => {
                 ...data.user,
                 publicKey: publicKey // 使用从私钥中提取的公钥
             }));
-            
-            // Generate and store encryption keys using password for additional security
-            await ensureEncryptionKeys(data.user.id, credentials.password);
-            
+
             // Log successful login
             console.log('Login successful');
             

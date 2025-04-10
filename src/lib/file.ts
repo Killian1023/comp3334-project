@@ -1,8 +1,9 @@
 import { db } from '../db';
-import { eq } from 'drizzle-orm';
+import { eq, ne, and, not, inArray } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { logAction, logError } from './logger';
+import { get } from 'http';
 
 /**
  * Get all files for a specific user
@@ -151,3 +152,80 @@ export const readEncryptedFile = async (fileId: string, userId: string) => {
     throw error;
   }
 };
+
+export const getFileKeyById = async (fileId: string) => {
+  try {
+    const file = await getFileById(fileId);
+    return file.fileKey;
+  } catch (error) {
+    await logError(error as Error, 'getFileKeyById');
+    throw error;
+  }
+}
+
+export const getShareList = async (fileId: string) => {
+  try {
+    // 1. 獲取當前檔案的信息，確保檔案存在
+    const file = await getFileById(fileId);
+    if (!file) {
+      throw new Error('File not found');
+    }
+    
+    // 2. 獲取已經分享的用戶ID列表
+    const sharedAccessRecords = await db
+      .select()
+      .from(schema.fileAccess)
+      .where(eq(schema.fileAccess.fileId, fileId));
+    
+    const sharedUserIds = sharedAccessRecords.map(record => record.sharedWith);
+    
+    // 3. 基本查詢條件: 排除文件擁有者
+    let conditions = ne(schema.users.id, file.userId);
+    
+    // 4. 如果有已分享用戶, 添加排除這些用戶的條件
+    if (sharedUserIds.length > 0) {
+      const newConditions = and(
+        conditions,
+        not(inArray(schema.users.id, sharedUserIds))
+      );
+      if (newConditions !== undefined) {
+        conditions = newConditions;
+      }
+    }
+    
+    // 5. 獲取可分享的所有用戶
+    const availableUsers = await db
+      .select({
+        id: schema.users.id,
+        username: schema.users.username,
+        email: schema.users.email
+      })
+      .from(schema.users)
+      .where(conditions);
+    
+    await logAction(`Retrieved share list for file: ${fileId}`, {
+      fileId,
+      availableUserCount: availableUsers.length
+    });
+    
+    return availableUsers;
+    
+  } catch (error) {
+    await logError(error as Error, 'getShareList');
+    throw error;
+  }
+}
+
+export const getEncryptedFileKey = async (fileId: string) => {
+  try {
+    const file = await getFileById(fileId);
+    if (!file) {
+      throw new Error('File not found');
+    }
+    
+    return file.fileKey;
+  } catch (error) {
+    await logError(error as Error, 'getEncryptedFileKey');
+    throw error;
+  }
+}
