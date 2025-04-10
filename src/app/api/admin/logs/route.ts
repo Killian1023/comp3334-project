@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '../../../../db';
 import { logs, admins } from '../../../../db/schema';
-import { verifyToken, getUserById } from '../../../../lib/auth';
+import { getUserById } from '../../../../lib/auth';
 import { logAction, logError } from '../../../../lib/logger';
 import { desc, eq } from 'drizzle-orm';
 
@@ -25,17 +25,12 @@ async function isAdmin(userId: string): Promise<boolean> {
 
 export async function GET(request: Request) {
   try {
-    // Extract and verify the authorization token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const token = authHeader.split(' ')[1];
-    const userId = verifyToken(token);
+    // Get the user ID from request headers that was set by middleware
+    const userId = request.headers.get('x-user-id');
     
     if (!userId) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      // This shouldn't happen if middleware is working correctly
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 401 });
     }
 
     // Check if the user is an admin

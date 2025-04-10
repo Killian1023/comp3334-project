@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { downloadAndDecryptFile } from '@/app/utils/fileHelper';
+import { logoutUser, getCurrentUser, getAuthToken, isAuthenticated } from '@/app/utils/authUtils';
 import FileUpload from '../components/files/FileUpload';
 import Link from 'next/link';
 
@@ -24,19 +25,6 @@ const FilesPage = () => {
   // Edit functionality states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [fileToEdit, setFileToEdit] = useState<FileItem | null>(null);
-  
-  // Get current user from local storage
-  const getCurrentUser = () => {
-    try {
-      const userStr = localStorage.getItem('user');
-      return userStr ? JSON.parse(userStr) : null;
-    } catch (e) {
-      return null;
-    }
-  };
-  
-  // Get auth token
-  const getAuthToken = () => localStorage.getItem('authToken');
   
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -118,24 +106,12 @@ const FilesPage = () => {
     setError('');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsLogoutLoading(true);
     
     try {
-      // Clear all user-related data from localStorage
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
-      localStorage.removeItem('privateKey');
-      
-      // Clear any encryption keys
-      const allKeys = Object.keys(localStorage);
-      allKeys.forEach(key => {
-        if (key.startsWith('encryptionKey_')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Navigate to login page
+      await logoutUser();
+      // Navigate to login page after successful logout
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
