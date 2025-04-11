@@ -7,7 +7,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    // 驗證身份
+    // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
         return NextResponse.json(
@@ -25,15 +25,14 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    // 2. 解析請求體
     const body = await request.json();
     const { fileId, ownerId, sharedWithUserId, encryptedFileKey } = body;
 
     if (!fileId || !sharedWithUserId || !encryptedFileKey) {
-      return NextResponse.json({ error: '缺少必要參數' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    // 3. 檢查文件是否存在並且屬於當前用戶
+    // Check if the file exists and is owned by the current user
     const [fileRecord] = await db
       .select()
       .from(files)
@@ -41,14 +40,14 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!fileRecord) {
-      return NextResponse.json({ error: '找不到文件' }, { status: 400 });
+      return NextResponse.json({ error: 'File not found' }, { status: 400 });
     }
 
     if (fileRecord.userId !== ownerId) {
-      return NextResponse.json({ error: '您無權共享此文件' }, { status: 403 });
+      return NextResponse.json({ error: 'You do not have permission to share this file' }, { status: 403 });
     }
 
-    // 4. 獲取被共享用戶的信息
+    // Get the shared user's information
     const [sharedWithUser] = await db
       .select()
       .from(users)
@@ -56,10 +55,10 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!sharedWithUser) {
-      return NextResponse.json({ error: '找不到接收共享的用戶' }, { status: 400 });
+      return NextResponse.json({ error: 'The user to whom the share was sent could not be found' }, { status: 400 });
     }
 
-    // 5. 檢查文件是否已經和此用戶共享
+    // Check if the file has been shared with this users
     const existingAccess = await db
       .select()
       .from(fileAccess)
@@ -71,10 +70,10 @@ export async function POST(request: NextRequest) {
       );
 
     if (existingAccess.length > 0) {
-      return NextResponse.json({ error: '文件已與此用戶共享' }, { status: 400 });
+      return NextResponse.json({ error: 'File is shared with this user' }, { status: 400 });
     }
 
-    // 6. 創建新的文件訪問記錄
+    // Create a new file access record
     const newFileAccess = {
       id: nanoid(),
       fileId: fileId,
@@ -83,17 +82,16 @@ export async function POST(request: NextRequest) {
       encryptedFileKey: encryptedFileKey,
     };
 
-    // 7. 將記錄插入數據庫
+    // Insert records into database
     await db.insert(fileAccess).values(newFileAccess);
 
-    // 8. 返回成功響應
     return NextResponse.json({
-      message: '文件共享成功',
+      message: 'File sharing successful',
       accessId: newFileAccess.id,
     }, { status: 200 });
 
   } catch (error) {
-    console.error('共享文件時出錯:', error);
-    return NextResponse.json({ error: '處理請求時出錯' }, { status: 500 });
+    console.error('Error sharing file:', error);
+    return NextResponse.json({ error: 'An error occurred while processing the request' }, { status: 500 });
   }
 }

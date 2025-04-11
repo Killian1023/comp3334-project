@@ -180,7 +180,7 @@ export const verifyToken = (token: string): string | null => {
 
 
 /**
- * 根據用戶ID獲取用戶的公鑰
+ * Get the user's public key based on the user ID
  */
 export const getUserPublicKeyById = async (userId: string): Promise<string | undefined> => {
   try {

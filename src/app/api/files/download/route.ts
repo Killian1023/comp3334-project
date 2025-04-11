@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'isShare is required' }, { status: 400 });
     }
     
-    // 宣告變數在條件區塊外
     let fileBuffer;
     let metadata;
     

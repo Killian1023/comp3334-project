@@ -353,7 +353,7 @@ const FilesPage = () => {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                我的檔案
+                My file
               </button>
               <button
                 onClick={() => setActiveTab('sharedFiles')}
@@ -363,7 +363,7 @@ const FilesPage = () => {
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                分享給我的檔案
+                Shared With Me
                 {sharedFiles.length > 0 && (
                   <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
                     {sharedFiles.length}
@@ -375,13 +375,13 @@ const FilesPage = () => {
             {activeTab === 'myFiles' && (
               <>
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                  <h2 className="text-xl font-semibold text-gray-800">我的檔案</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">My files</h2>
                 </div>
                 
                 {isLoading ? (
                   <div className="p-8 text-center">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p className="text-gray-500">載入檔案中...</p>
+                    <p className="text-gray-500">Loading file...</p>
                   </div>
                 ) : files.length > 0 ? (
                   <div className="divide-y divide-gray-200">
@@ -443,8 +443,8 @@ const FilesPage = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
                     </svg>
-                    <p className="text-gray-500 mb-2">您尚未上傳任何檔案</p>
-                    <p className="text-sm text-gray-400">使用左側上傳區域加入您的第一個加密檔案</p>
+                    <p className="text-gray-500 mb-2">You haven't uploaded any files yet</p>
+                    <p className="text-sm text-gray-400">Use the upload area on the left to add your first encrypted archive</p>
                   </div>
                 )}
               </>
@@ -453,13 +453,13 @@ const FilesPage = () => {
             {activeTab === 'sharedFiles' && (
               <>
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                  <h2 className="text-xl font-semibold text-gray-800">分享給我的檔案</h2>
+                  <h2 className="text-xl font-semibold text-gray-800">Shared With Me</h2>
                 </div>
                 
                 {isLoadingShared ? (
                   <div className="p-8 text-center">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                    <p className="text-gray-500">載入分享檔案中...</p>
+                    <p className="text-gray-500">Loading shared files...</p>
                   </div>
                 ) : sharedFiles.length > 0 ? (
                   <div className="divide-y divide-gray-200">
@@ -498,8 +498,8 @@ const FilesPage = () => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                     </svg>
-                    <p className="text-gray-500 mb-2">目前沒有分享給您的檔案</p>
-                    <p className="text-sm text-gray-400">當其他用戶與您共享檔案後，將會顯示在這裡</p>
+                    <p className="text-gray-500 mb-2">There are currently no files shared with you</p>
+                    <p className="text-sm text-gray-400">When other users share files with you, they will be displayed here</p>
                   </div>
                 )}
               </>

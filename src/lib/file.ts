@@ -216,13 +216,13 @@ export const getFileKeyById = async (fileId: string) => {
 
 export const getShareList = async (fileId: string) => {
   try {
-    // 1. 獲取當前檔案的信息，確保檔案存在
+    // Get the information of the current file and ensure that the file exists
     const file = await getFileById(fileId);
     if (!file) {
       throw new Error('File not found');
     }
     
-    // 2. 獲取已經分享的用戶ID列表
+    // Get the list of user IDs that have shared
     const sharedAccessRecords = await db
       .select()
       .from(schema.fileAccess)
@@ -230,10 +230,10 @@ export const getShareList = async (fileId: string) => {
     
     const sharedUserIds = sharedAccessRecords.map(record => record.sharedWith);
     
-    // 3. 基本查詢條件: 排除文件擁有者
+    // Basic query conditions: Exclude file owners
     let conditions = ne(schema.users.id, file.userId);
     
-    // 4. 如果有已分享用戶, 添加排除這些用戶的條件
+    // If there are shared users, add conditions to exclude these users
     if (sharedUserIds.length > 0) {
       const newConditions = and(
         conditions,
@@ -244,7 +244,7 @@ export const getShareList = async (fileId: string) => {
       }
     }
     
-    // 5. 獲取可分享的所有用戶
+    // Get all users who can share
     const availableUsers = await db
       .select({
         id: schema.users.id,
@@ -282,12 +282,12 @@ export const getEncryptedFileKey = async (fileId: string) => {
 }
 
 /**
- * 根據 fileAccess 返回共享給特定用戶的文件
- * 此函數讀取共享給用戶的文件內容和為其加密的密鑰
+ * Return files shared to a specific user based on fileAccess
+ * This function reads the file content shared with the user and the key used to encrypt it
  */
 export const readSharedFile = async (fileId: string, userId: string) => {
   try {
-    // 1. 檢查該用戶是否有權訪問這個共享文件
+    // Check if the user has permission to access the shared file
     const accessRecords = await db
       .select()
       .from(schema.fileAccess)
@@ -305,7 +305,7 @@ export const readSharedFile = async (fileId: string, userId: string) => {
     
     const accessRecord = accessRecords[0];
     
-    // 2. 獲取文件數據
+    // Get file data
     const file = await getFileById(fileId);
     
     if (!file) {
@@ -314,12 +314,12 @@ export const readSharedFile = async (fileId: string, userId: string) => {
     
     await logAction(`Shared file accessed: ${fileId}`, { userId, ownerId: accessRecord.ownerId });
     
-    // 3. 返回文件內容和該用戶特有的加密文件密鑰
+    // Returns the file contents and the user-specific encrypted file key
     return {
       fileBuffer: file.fileData,
       metadata: {
         iv: file.iv,
-        fileKey: accessRecord.encryptedFileKey, // 使用為此用戶特別加密的文件密鑰
+        fileKey: accessRecord.encryptedFileKey,
         originalName: file.originalName,
         originalType: file.originalType,
         size: file.size,
@@ -334,11 +334,11 @@ export const readSharedFile = async (fileId: string, userId: string) => {
 };
 
 /**
- * 獲取所有共享給指定用戶的文件列表
+ * Get a list of all files shared with a specified user
  */
 export const getSharedFilesForUser = async (userId: string) => {
   try {
-    // 聯合查詢 fileAccess 和 files 表，獲取共享給用戶的所有文件
+    // Combine the fileAccess and files tables to get all files shared with the user.
     const sharedFiles = await db
       .select({
         id: schema.files.id,

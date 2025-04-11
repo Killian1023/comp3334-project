@@ -16,24 +16,24 @@ export async function GET(request: NextRequest) {
     // 1. 驗證用戶身份
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: '未授權訪問' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized access' }, { status: 401 });
     }
     
     const token = authHeader.substring(7);
     const userId = verifyToken(token);
     if (!userId) {
-      return NextResponse.json({ error: '無效的認證令牌' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid authentication token' }, { status: 401 });
     }
 
     // 2. 獲取分享給當前用戶的檔案列表
     const sharedFiles = await getSharedFilesForUser(userId);
 
     // 3. 記錄操作並返回檔案列表
-    await logAction('獲取分享檔案列表成功', { userId, fileCount: sharedFiles.length });
+    await logAction('Successfully obtained the shared archive list', { userId, fileCount: sharedFiles.length });
     return NextResponse.json({ files: sharedFiles });
     
   } catch (error) {
     await logError(error as Error, 'shared-files-list API');
-    return NextResponse.json({ error: '獲取分享檔案列表失敗' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to obtain the shared file list' }, { status: 500 });
   }
 }

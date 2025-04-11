@@ -7,7 +7,7 @@ export async function GET(
   request: Request,
 ) {
   try {
-    // 驗證身份
+    // Verify authentication
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
         return NextResponse.json(
@@ -25,37 +25,36 @@ export async function GET(
         );
     }
 
-    // 從URL查詢參數中獲取fileId
     const { searchParams } = new URL(request.url);
     const fileId = searchParams.get('fileId');
 
     if (!fileId) {
       return NextResponse.json(
-        { error: '缺少必要的fileId參數' },
+        { error: 'The required fileId parameter is missing' },
         { status: 400 }
       );
     }
 
-    // 檢查用戶是否有權訪問該文件
+    // Check if the user has permission to access the file
     const isAuthorized = await isAuthorizedForFile(fileId, userId);
     if (!isAuthorized) {
-      await logAction(`未授權的文件密鑰訪問嘗試: ${fileId}`, { userId: userId });
+      await logAction(`Unauthorized file key access attempt: ${fileId}`, { userId: userId });
       return NextResponse.json(
-        { error: '您無權訪問此文件' },
+        { error: 'You do not have permission to access this file' },
         { status: 403 }
       );
     }
 
-    // 獲取加密文件的密鑰
+    // Get the key to encrypt the file
     const encryptedFileKey = await getEncryptedFileKey(fileId);
     
-    await logAction(`文件密鑰已獲取: ${fileId}`, { userId: userId });
+    await logAction(`File key obtained: ${fileId}`, { userId: userId });
 
     return NextResponse.json({ encryptedFileKey });
   } catch (error) {
     await logError(error as Error, 'getEncryptedFileKey API');
     return NextResponse.json(
-      { error: '獲取文件密鑰時發生錯誤' },
+      { error: 'An error occurred while getting the file key' },
       { status: 500 }
     );
   }
