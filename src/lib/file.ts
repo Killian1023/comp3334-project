@@ -50,6 +50,8 @@ export const deleteFile = async (id: string, userId: string) => {
       throw new Error('Unauthorized to delete this file');
     }
     
+    // First delete any file access records for this file
+    await db.delete(schema.fileAccess).where(eq(schema.fileAccess.fileId, id));
     // Remove from database
     await db.delete(schema.files).where(eq(schema.files.id, id));
     

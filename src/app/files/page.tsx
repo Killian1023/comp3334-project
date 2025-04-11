@@ -42,6 +42,10 @@ const FilesPage = () => {
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [fileToEdit, setFileToEdit] = useState<FileItem | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<string | null>(null);
+  const [isDeletingFile, setIsDeletingFile] = useState(false);
+  const [success, setSuccess] = useState('');
   
   useEffect(() => {
     const token = getAuthToken();
@@ -263,6 +267,51 @@ const FilesPage = () => {
     setError('');
   };
 
+  const handleDeleteConfirm = async () => {
+    const token = getAuthToken();
+    if (!token || !fileToDelete) return;
+    
+    try {
+      setIsDeletingFile(true);
+      const response = await fetch('/api/files/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          fileId: fileToDelete
+        })
+      });
+      
+      if (response.ok) {
+        // 成功刪除檔案後，更新檔案列表
+        fetchFiles();
+        setIsDeleteModalOpen(false);
+        setFileToDelete(null);
+        
+        // 顯示成功提示
+        setSuccess('The file has been successfully deleted');
+        // 3秒後自動清除成功提示
+        setTimeout(() => {
+          setSuccess('');
+        }, 3000);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete file');
+      }
+    } catch (error) {
+      setError('An error occurred while deleting the file: ' + (error as Error).message);
+    } finally {
+      setIsDeletingFile(false);
+    }
+  };
+  
+  const handleDeleteFile = (fileId: string) => {
+    setFileToDelete(fileId);
+    setIsDeleteModalOpen(true);
+  };
+
   const handleLogout = async () => {
     setIsLogoutLoading(true);
     
@@ -321,6 +370,27 @@ const FilesPage = () => {
               <button 
                 className="text-xs text-red-600 hover:text-red-800 font-medium underline mt-1" 
                 onClick={() => setError('')}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {success && (
+        <div className="mb-6 bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-md shadow-sm">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 00-2 0v3a1 1 0 002 0V7zm-1 6a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">{success}</p>
+              <button 
+                className="text-xs text-green-600 hover:text-green-800 font-medium underline mt-1" 
+                onClick={() => setSuccess('')}
               >
                 Close
               </button>
@@ -432,6 +502,16 @@ const FilesPage = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                               </svg>
                               Download
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFile(file.id)}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                              disabled={isLoading}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              Delete
                             </button>
                           </div>
                         </div>
@@ -584,6 +664,46 @@ const FilesPage = () => {
                   ))}
                 </ul>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Confirm Delete
+              </h3>
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to delete this file? This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-4">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="px-3 py-1 bg-gray-300 hover:bg-gray-400 text-gray-800 text-sm rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  disabled={isDeletingFile}
+                >
+                  {isDeletingFile ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
