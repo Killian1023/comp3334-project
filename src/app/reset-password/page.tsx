@@ -42,8 +42,8 @@ const ResetPasswordPage = () => {
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
                 <div className="flex items-center space-x-4">
-                    <Link href="/login" className="text-sm text-blue-600 hover:text-blue-800">
-                        Back to Login
+                    <Link href="/files" className="text-sm text-blue-600 hover:text-blue-800">
+                        Back
                     </Link>
                 </div>
             </div>

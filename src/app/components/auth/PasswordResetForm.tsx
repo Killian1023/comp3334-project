@@ -239,7 +239,7 @@ const PasswordResetForm: React.FC<PasswordResetFormProps> = ({
                     </div>
                 )}
                 <form onSubmit={handleUsernameSubmit} className="space-y-4">
-                    <div>
+                    <div className="w-full">
                         <label htmlFor="usernameOrEmail" className="block mb-2 text-sm font-medium text-gray-700">Username or Email</label>
                         <Input
                             id="usernameOrEmail"
@@ -248,6 +248,7 @@ const PasswordResetForm: React.FC<PasswordResetFormProps> = ({
                             value={usernameOrEmail}
                             onChange={(e) => setUsernameOrEmail(e.target.value)}
                             disabled={isLoading}
+                            className="w-full"
                         />
                     </div>
                     
