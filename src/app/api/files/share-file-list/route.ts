@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getSharedFilesForUser } from '@/lib/file';
-import { logAction, logError } from '@/lib/logger';
 
 /**
  * 獲取已分享給當前用戶的檔案列表
@@ -29,11 +28,9 @@ export async function GET(request: NextRequest) {
     const sharedFiles = await getSharedFilesForUser(userId);
 
     // 3. 記錄操作並返回檔案列表
-    await logAction('Successfully obtained the shared archive list', { userId, fileCount: sharedFiles.length });
     return NextResponse.json({ files: sharedFiles });
     
   } catch (error) {
-    await logError(error as Error, 'shared-files-list API');
     return NextResponse.json({ error: 'Failed to obtain the shared file list' }, { status: 500 });
   }
 }

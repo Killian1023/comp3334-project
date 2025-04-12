@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { updateEncryptedFile } from '@/lib/file';
-import { logAction, logError } from '@/lib/logger';
+import { logActionWithSignature } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,13 +26,21 @@ export async function POST(request: NextRequest) {
     const originalName = formData.get('originalName') as string;
     const originalType = formData.get('originalType') as string;
     const size = parseInt(formData.get('size') as string, 10);
+    const actionSignature = formData.get('actionSignature') as string;
     
-    if (!file || !iv || !originalName || !fileKey || !fileId) {
+    if (!file || !iv || !originalName || !fileKey || !fileId || !actionSignature) {
       return NextResponse.json({ error: 'Missing required file data' }, { status: 400 });
     }
     
     // Read the encrypted file
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    await logActionWithSignature(
+      'File update request',
+      userId,
+      actionSignature,
+      { fileId, timestamp: new Date().toISOString() }
+    );
     
     // Update the file using our helper
     await updateEncryptedFile(buffer, fileId, userId, {
@@ -43,7 +51,6 @@ export async function POST(request: NextRequest) {
       size
     });
     
-    await logAction(`File updated by user: ${userId}, fileId: ${fileId}`);
     
     return NextResponse.json({
       success: true,
@@ -51,7 +58,6 @@ export async function POST(request: NextRequest) {
       message: 'File updated successfully'
     });
   } catch (error) {
-    await logError(error as Error, 'file-edit-api');
     return NextResponse.json({ error: 'Failed to update file' }, { status: 500 });
   }
 }

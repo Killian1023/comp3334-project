@@ -58,6 +58,8 @@ export const logs = sqliteTable('logs', {
   id: integer('id', { mode: 'number' }).primaryKey({ autoIncrement: true }),
   timestamp: text('timestamp').notNull(),
   message: text('message').notNull(),
+  userId: text('user_id'),
+  signature: text('signature'),
   metadata: text('metadata'),
   level: text('level').default('info').notNull(),
 });

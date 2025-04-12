@@ -7,7 +7,7 @@ from datetime import datetime
 DB_PATH = '/Users/killian/Desktop/comp3334-project/filesystem.db'
 
 # User ID to add as admin
-USER_ID = '4e77b7c4-bef4-4c40-b72b-7fd4dd1aedf7'
+USER_ID = 'c6e7f9ba-db5e-4bf6-bfc5-44baf1048389'
 
 def add_user_as_admin(user_id):
     try:

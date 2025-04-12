@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { readEncryptedFile, readSharedFile } from '@/lib/file';
-import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,7 +68,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    await logError(error as Error, 'file-download-api');
     if ((error as Error).message === 'Unauthorized access') {
       return NextResponse.json({ error: 'Unauthorized access to file' }, { status: 403 });
     } else if ((error as Error).message === 'File not found') {

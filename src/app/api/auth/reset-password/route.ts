@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getUserByUsername, getUserByEmail } from '../../../../lib/auth';
-import { logAction, logError } from '../../../../lib/logger';
 import { db } from '../../../../db';
 import { users } from '../../../../db/schema';
 import { eq } from 'drizzle-orm';
@@ -27,7 +26,6 @@ export async function POST(request: Request) {
     }
 
     if (!user) {
-      await logAction('Password reset requested for non-existent user', { usernameOrEmail });
       // Don't reveal that the user doesn't exist
       return NextResponse.json(
         { message: 'If your account exists, you will be able to reset your password.' },
@@ -59,7 +57,6 @@ export async function POST(request: Request) {
       .where(eq(users.id, user.id))
       .execute();
 
-    await logAction('Password reset requested', { userId: user.id });
     
     return NextResponse.json({
       message: 'If your account exists, you will be able to reset your password.',
@@ -67,7 +64,6 @@ export async function POST(request: Request) {
       counter: nextCounter
     });
   } catch (error) {
-    await logError(error as Error, 'password-reset-request');
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

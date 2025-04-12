@@ -3,7 +3,6 @@ import { getUserByUsername, hashPassword } from '../../../../lib/auth';
 import { db } from '../../../../db';
 import { users } from '../../../../db/schema';
 import { v4 as uuidv4 } from 'uuid';
-import { logAction, logError } from '../../../../lib/logger';
 import jwt from 'jsonwebtoken';
 
 // Use the same JWT settings as the login route
@@ -26,14 +25,12 @@ const generateToken = (userId: string): string => {
 
 export async function POST(request: Request) {
   try {
-    await logAction('Registration request received');
     
     // 接收客户端发送的公钥
     const { username, password, email, publicKey } = await request.json();
     
     // Validation
     if (!username || !password || !email || !publicKey) {
-      await logAction('Registration validation failed', { reason: 'Missing fields' });
       return NextResponse.json({ 
         message: 'Username, password, email and public key are required',
         error: 'Missing required fields'
@@ -43,7 +40,6 @@ export async function POST(request: Request) {
     // Check if username is already taken
     const existingUsername = await getUserByUsername(username);
     if (existingUsername) {
-      await logAction('Registration failed - username taken', { username });
       return NextResponse.json({ 
         message: 'Username is already taken',
         error: 'Username taken'
@@ -56,7 +52,6 @@ export async function POST(request: Request) {
       
       // Hash the password
       const passwordHash = await hashPassword(password);
-      await logAction('Password hashed for registration');
       
       // Create the user
       const now = new Date().toISOString();
@@ -72,11 +67,6 @@ export async function POST(request: Request) {
         updatedAt: now
       }).returning();
       
-      await logAction(`User registered successfully`, { 
-        userId, 
-        username,
-        registrationTime: now 
-      });
       
       // Generate JWT token for the newly registered user
       const token = generateToken(userId);
@@ -92,7 +82,6 @@ export async function POST(request: Request) {
       
     } catch (dbError) {
       console.error('Database error during registration:', dbError);
-      await logError(dbError as Error, 'user-registration-db');
       return NextResponse.json({ 
         message: 'Database error during registration',
         error: dbError instanceof Error ? dbError.message : 'Unknown database error'
@@ -101,7 +90,6 @@ export async function POST(request: Request) {
     
   } catch (error) {
     console.error('Registration error:', error);
-    await logError(error as Error, 'user-registration');
     return NextResponse.json({ 
       message: 'An error occurred during registration',
       error: error instanceof Error ? error.message : 'Unknown error'

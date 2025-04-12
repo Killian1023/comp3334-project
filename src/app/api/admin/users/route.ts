@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { db } from '../../../../db';
 import { users } from '../../../../db/schema';
 import { verifyToken, getUserById } from '../../../../lib/auth';
-import { logAction, logError } from '../../../../lib/logger';
 
 const ADMIN_USERNAMES = ['admin'];  // List of admin usernames
 
@@ -36,7 +35,6 @@ export async function GET(request: Request) {
     // Check if the user is an admin
     const adminUser = await isAdmin(userId);
     if (!adminUser) {
-      await logAction('Unauthorized access to admin user list', { userId });
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -48,15 +46,12 @@ export async function GET(request: Request) {
       createdAt: users.createdAt
     })
     .from(users);
-    
-    await logAction('Admin viewed user list', { userId });
-    
+        
     return NextResponse.json({
       users: usersList
     });
     
   } catch (error) {
-    await logError(error as Error, 'admin-users');
     return NextResponse.json(
       { error: 'An error occurred while fetching users' },
       { status: 500 }

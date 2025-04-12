@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { saveEncryptedFile } from '@/lib/file';
-import { logAction, logError } from '@/lib/logger';
+import { logActionWithSignature} from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
     const originalName = formData.get('originalName') as string;
     const originalType = formData.get('originalType') as string;
     const size = parseInt(formData.get('size') as string, 10);
+    const actionSignature = formData.get('actionSignature') as string;
     
-    if (!file || !iv || !originalName || !fileKey) {
+    if (!file || !iv || !originalName || !fileKey || !actionSignature) {
       return NextResponse.json({ error: 'Missing required file data' }, { status: 400 });
     }
     
@@ -35,6 +36,13 @@ export async function POST(request: NextRequest) {
     // Read the encrypted file
     const buffer = Buffer.from(await file.arrayBuffer());
     
+    await logActionWithSignature(
+      'File upload request',
+      userId,
+      actionSignature,
+      { timestamp: new Date().toISOString() }
+    );
+
     // Save the file using our helper
     const { fileId } = await saveEncryptedFile(buffer, userId, {
       iv, 
@@ -50,7 +58,6 @@ export async function POST(request: NextRequest) {
       message: 'File uploaded successfully'
     });
   } catch (error) {
-    await logError(error as Error, 'file-upload-api');
     return NextResponse.json({ error: 'Failed to process file upload' }, { status: 500 });
   }
 }

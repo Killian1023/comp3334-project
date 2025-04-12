@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getEncryptedFileKey, isAuthorizedForFile } from '@/lib/file';
-import { logAction, logError } from '@/lib/logger';
 
 export async function GET(
   request: Request,
@@ -38,7 +37,6 @@ export async function GET(
     // Check if the user has permission to access the file
     const isAuthorized = await isAuthorizedForFile(fileId, userId);
     if (!isAuthorized) {
-      await logAction(`Unauthorized file key access attempt: ${fileId}`, { userId: userId });
       return NextResponse.json(
         { error: 'You do not have permission to access this file' },
         { status: 403 }
@@ -48,11 +46,8 @@ export async function GET(
     // Get the key to encrypt the file
     const encryptedFileKey = await getEncryptedFileKey(fileId);
     
-    await logAction(`File key obtained: ${fileId}`, { userId: userId });
-
     return NextResponse.json({ encryptedFileKey });
   } catch (error) {
-    await logError(error as Error, 'getEncryptedFileKey API');
     return NextResponse.json(
       { error: 'An error occurred while getting the file key' },
       { status: 500 }

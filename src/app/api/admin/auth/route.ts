@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, getUserById } from '../../../../lib/auth';
-import { logAction, logError } from '../../../../lib/logger';
 import { db } from '../../../../db';
 import { admins } from '../../../../db/schema';
 import { eq } from 'drizzle-orm';
@@ -23,7 +22,6 @@ export async function GET(request: Request) {
     // Check if the user is in the admins table
     const user = await getUserById(userId);
     if (!user) {
-      await logAction('Failed admin auth attempt - user not found', { userId });
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
     
@@ -34,11 +32,9 @@ export async function GET(request: Request) {
       .limit(1);
     
     if (!adminRecord || adminRecord.length === 0) {
-      await logAction('Failed admin auth attempt - not in admin table', { userId, username: user.username });
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    await logAction('Admin authenticated', { userId, username: user.username });
     
     return NextResponse.json({
       isAdmin: true,
@@ -47,7 +43,6 @@ export async function GET(request: Request) {
     });
     
   } catch (error) {
-    await logError(error as Error, 'admin-auth');
     return NextResponse.json(
       { error: 'An error occurred during authentication' },
       { status: 500 }

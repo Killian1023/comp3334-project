@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getFilesByUserId } from '@/lib/file';
-import { logAction, logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +19,6 @@ export async function GET(request: NextRequest) {
     // Get all files for this user using our helper
     const userFiles = await getFilesByUserId(userId);
     
-    await logAction(`Files listed by user: ${userId}`);
     
     interface FileResponse {
       id: string;
@@ -40,7 +38,6 @@ export async function GET(request: NextRequest) {
       } as FileResponse))
     });
   } catch (error) {
-    await logError(error as Error, 'list-files-api');
     return NextResponse.json({ error: 'Failed to retrieve files' }, { status: 500 });
   }
 }

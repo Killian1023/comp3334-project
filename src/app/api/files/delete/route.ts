@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { deleteFile } from '@/lib/file';
-import { logAction, logError } from '@/lib/logger';
+import { logActionWithSignature } from '@/lib/logger';
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -19,12 +19,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get the ID of the archive to be deleted
-    const { fileId } = await request.json();
+    const { fileId, actionSignature } = await request.json();
     if (!fileId) {
       return NextResponse.json({
         error: 'Missing file ID'
       }, { status: 400 });
     }
+
+
+    await logActionWithSignature("File deletion request", userId, actionSignature, { fileId, timestamp: new Date().toISOString() });
 
     // Delete files and related sharing permissions
     await deleteFile(fileId, userId);
@@ -34,7 +37,6 @@ export async function DELETE(request: NextRequest) {
       message: 'The file has been successfully deleted'
     });
   } catch (error: any) {
-    await logError(error, 'DELETE /api/files/delete');
     
     if (error.message === 'Unauthorized to delete this file') {
       return NextResponse.json({

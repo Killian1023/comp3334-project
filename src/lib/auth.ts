@@ -3,7 +3,6 @@ import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import * as schema from '../db/schema';
 import { User } from '../app/types';
-import { logAction, logError } from './logger';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
@@ -32,7 +31,6 @@ export const getUserById = async (id: string): Promise<User | undefined> => {
     const result = await db.select().from(schema.users).where(eq(schema.users.id, id));
     return result[0] ? convertToUserType(result[0]) : undefined;
   } catch (error) {
-    await logError(error as Error, 'getUserById');
     throw error;
   }
 };
@@ -45,7 +43,6 @@ export const getUserByUsername = async (username: string): Promise<User | undefi
     const result = await db.select().from(schema.users).where(eq(schema.users.username, username));
     return result[0] ? convertToUserType(result[0]) : undefined;
   } catch (error) {
-    await logError(error as Error, 'getUserByUsername');
     throw error;
   }
 };
@@ -58,7 +55,6 @@ export const getUserByEmail = async (email: string): Promise<User | undefined> =
     const result = await db.select().from(schema.users).where(eq(schema.users.email, email));
     return result[0] ? convertToUserType(result[0]) : undefined;
   } catch (error) {
-    await logError(error as Error, 'getUserByEmail');
     throw error;
   }
 };
@@ -86,10 +82,8 @@ export const updateUser = async (id: string, userData: Partial<User>): Promise<U
       throw new Error('User not found after update');
     }
     
-    await logAction(`User updated: ${id}`, { fields: Object.keys(userData) });
     return user;
   } catch (error) {
-    await logError(error as Error, 'updateUser');
     throw error;
   }
 };
@@ -100,9 +94,7 @@ export const updateUser = async (id: string, userData: Partial<User>): Promise<U
 export const deleteUser = async (id: string): Promise<void> => {
   try {
     await db.delete(schema.users).where(eq(schema.users.id, id));
-    await logAction(`User deleted: ${id}`);
   } catch (error) {
-    await logError(error as Error, 'deleteUser');
     throw error;
   }
 };
@@ -114,7 +106,6 @@ export const verifyPassword = async (password: string, hashedPassword: string): 
   try {
     return await bcrypt.compare(password, hashedPassword);
   } catch (error) {
-    await logError(error as Error, 'verifyPassword');
     return false;
   }
 };
@@ -146,21 +137,17 @@ export const authenticateUser = async (
     }
     
     if (!user) {
-      await logAction(`Failed login attempt: ${usernameOrEmail} (user not found)`);
       return null;
     }
     
     // Verify the password
     const passwordValid = await verifyPassword(password, user.passwordHash);
     if (!passwordValid) {
-      await logAction(`Failed login attempt: ${usernameOrEmail} (invalid password)`);
       return null;
     }
     
-    await logAction(`User authenticated: ${user.id}`);
     return user;
   } catch (error) {
-    await logError(error as Error, 'authenticateUser');
     return null;
   }
 };
@@ -187,7 +174,6 @@ export const getUserPublicKeyById = async (userId: string): Promise<string | und
     const user = await getUserById(userId);
     return user?.publicKey;
   } catch (error) {
-    await logError(error as Error, 'getUserPublicKeyById');
     throw error;
   }
 };

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { logAction } from '../../../../lib/logger';
 import { db } from '../../../../db';
 import { users } from '../../../../db/schema';
 import { eq } from 'drizzle-orm';
@@ -81,7 +80,6 @@ export async function POST(request: Request) {
       .execute();
 
     if (!userResult || userResult.length === 0) {
-      await logAction('HOTP verification failed: User not found', { userId });
       return NextResponse.json(
         { message: 'Authentication failed' },
         { status: 401 }
@@ -91,7 +89,6 @@ export async function POST(request: Request) {
     const user = userResult[0];
     
     if (!user.publicKey) {
-      await logAction('HOTP verification failed: No public key for user', { userId });
       return NextResponse.json(
         { message: 'Authentication failed - no public key' },
         { status: 401 }
@@ -102,7 +99,6 @@ export async function POST(request: Request) {
     const isValid = await verifyHOTP(user.publicKey, hotpCode, counter);
 
     if (!isValid) {
-      await logAction('HOTP verification failed: Invalid code', { userId });
       return NextResponse.json(
         { message: 'Invalid authentication code' },
         { status: 401 }
@@ -112,10 +108,7 @@ export async function POST(request: Request) {
     // If HOTP verification passes, generate a new JWT token
     const token = generateToken(user.id);
 
-    await logAction(`User authenticated with HOTP: ${user.id}`, { 
-      username: user.username,
-      method: 'HOTP'
-    });
+
 
     // Return the token and user info (excluding sensitive data)
     const { passwordHash, ...userWithoutPassword } = user;
@@ -126,7 +119,6 @@ export async function POST(request: Request) {
       expiresIn: JWT_EXPIRES_IN
     });
   } catch (error) {
-    await logAction('HOTP verification error', { error: (error as Error).message });
     return NextResponse.json(
       { message: 'An error occurred during authentication' },
       { status: 500 }

@@ -4,6 +4,7 @@ import { fileAccess, files, users } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { verifyToken } from '@/lib/auth';
+import { logActionWithSignature } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,11 +27,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fileId, ownerId, sharedWithUserId, encryptedFileKey } = body;
+    const { fileId, ownerId, sharedWithUserId, encryptedFileKey, actionSignature } = body;
 
-    if (!fileId || !sharedWithUserId || !encryptedFileKey) {
+    if (!fileId || !sharedWithUserId || !encryptedFileKey || !actionSignature) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
+
+    await logActionWithSignature(
+      'File sharing request',
+      ownerId,
+      actionSignature,
+      { fileId, sharedWithUserId, timestamp: new Date().toISOString() }
+    );
 
     // Check if the file exists and is owned by the current user
     const [fileRecord] = await db

@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { downloadAndDecryptFile } from '@/app/utils/fileHelper';
-import { logoutUser, getCurrentUser, getAuthToken, isAuthenticated } from '@/app/utils/authUtils';
+import { logoutUser, getCurrentUser, getAuthToken} from '@/app/utils/authUtils';
 import FileUpload from '../components/files/FileUpload';
 import Link from 'next/link';
 import { getCurrentUserPrivateKey, decryptFileKey, encryptFileKey } from '../utils/fileKeyEncryption';
+import PasswordVerificationModal from '../components/PasswordVerificationModal';
+import { signAction } from '../utils/clientencryption';
 
 interface FileItem {
   id: string;
@@ -47,6 +49,15 @@ const FilesPage = () => {
   const [isDeletingFile, setIsDeletingFile] = useState(false);
   const [success, setSuccess] = useState('');
   
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: 'download' | 'edit' | 'share' | 'delete' | 'shareWithUser';
+    fileId?: string;
+    file?: FileItem;
+    userId?: string;
+    isShare?: string;
+  } | null>(null);
+
   useEffect(() => {
     const token = getAuthToken();
     const user = getCurrentUser();
@@ -111,7 +122,16 @@ const FilesPage = () => {
     }
   };
   
-  const handleDownload = async (fileId: string, isShare?: string) => {
+  const handleDownload = (fileId: string, isShare?: string) => {
+    setPendingAction({
+      type: 'download',
+      fileId,
+      isShare
+    });
+    setPasswordModalOpen(true);
+  };
+
+  const executeDownload = async (fileId: string, isShare?: string) => {
     const user = getCurrentUser();
     const token = getAuthToken();
     
@@ -138,7 +158,15 @@ const FilesPage = () => {
     }
   };
 
-  const handleShare = async (fileId: string) => {
+  const handleShare = (fileId: string) => {
+    setPendingAction({
+      type: 'share',
+      fileId
+    });
+    setPasswordModalOpen(true);
+  };
+
+  const executeShare = async (fileId: string) => {
     const user = getCurrentUser();
     const token = getAuthToken();
     
@@ -177,7 +205,15 @@ const FilesPage = () => {
     }
   };
 
-  const handleShareWithUser = async (userId: string) => {
+  const handleShareWithUser = (userId: string) => {
+    setPendingAction({
+      type: 'shareWithUser',
+      userId
+    });
+    setPasswordModalOpen(true);
+  };
+
+  const executeShareWithUser = async (userId: string) => {
     let publicKey = '';
     let existingEncryptedFileKey = '';
     const token = getAuthToken();
@@ -211,22 +247,20 @@ const FilesPage = () => {
         }
       });
 
-      console.log('Encrypted file key response:', encryptedFileKeyResponse);
-
       if (encryptedFileKeyResponse.ok) {
         const data = await encryptedFileKeyResponse.json();
-        console.log('Encrypted file key response:', data);
         existingEncryptedFileKey = data.encryptedFileKey;
-        console.log('Encrypted file key:', existingEncryptedFileKey);
       } else {
         const errorData = await encryptedFileKeyResponse.json();
-        throw new Error(errorData.message || 'Failed to get public key');
+        throw new Error(errorData.message || 'Failed to get encrypted file key');
       }
 
       const decryptedFileKey = await decryptFileKey(existingEncryptedFileKey, privateKey);
       
       const encryptedFileKey = await encryptFileKey(decryptedFileKey, publicKey);
       
+      const actionSignature = await signAction('share', privateKey);
+
       const response = await fetch('/api/files/share', {
         method: 'POST',
         headers: {
@@ -237,7 +271,8 @@ const FilesPage = () => {
           ownerId: getCurrentUser()?.id,
           fileId: currentFileId,
           sharedWithUserId: userId,
-          encryptedFileKey: encryptedFileKey
+          encryptedFileKey: encryptedFileKey,
+          actionSignature: actionSignature
         })
       });
       
@@ -256,8 +291,64 @@ const FilesPage = () => {
   };
 
   const handleEdit = (file: FileItem) => {
+    setPendingAction({
+      type: 'edit',
+      file
+    });
+    setPasswordModalOpen(true);
+  };
+
+  const executeEdit = (file: FileItem) => {
     setFileToEdit(file);
     setIsEditModalOpen(true);
+  };
+
+  const handleDeleteFile = (fileId: string) => {
+    setPendingAction({
+      type: 'delete',
+      fileId
+    });
+    setPasswordModalOpen(true);
+  };
+
+  const executeDeleteFile = (fileId: string) => {
+    setFileToDelete(fileId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handlePasswordVerificationSuccess = () => {
+    if (!pendingAction) return;
+
+    switch (pendingAction.type) {
+      case 'download':
+        if (pendingAction.fileId) {
+          executeDownload(pendingAction.fileId, pendingAction.isShare);
+        }
+        break;
+      case 'edit':
+        if (pendingAction.file) {
+          executeEdit(pendingAction.file);
+        }
+        break;
+      case 'share':
+        if (pendingAction.fileId) {
+          executeShare(pendingAction.fileId);
+        }
+        break;
+      case 'delete':
+        if (pendingAction.fileId) {
+          executeDeleteFile(pendingAction.fileId);
+        }
+        break;
+      case 'shareWithUser':
+        if (pendingAction.userId) {
+          executeShareWithUser(pendingAction.userId);
+        }
+        break;
+    }
+
+    setPasswordModalOpen(false);
+    setPendingAction(null);
   };
 
   const handleEditSuccess = () => {
@@ -273,6 +364,13 @@ const FilesPage = () => {
     
     try {
       setIsDeletingFile(true);
+
+      const privateKey = getCurrentUserPrivateKey();
+      if (!privateKey) {
+        throw new Error('Private key not found. Please log in again.');
+      }
+      
+      const actionSignature = await signAction('delete', privateKey);
       const response = await fetch('/api/files/delete', {
         method: 'DELETE',
         headers: {
@@ -280,19 +378,16 @@ const FilesPage = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          fileId: fileToDelete
+          fileId: fileToDelete,
+          actionSignature: actionSignature
         })
       });
       
       if (response.ok) {
-        // 成功刪除檔案後，更新檔案列表
         fetchFiles();
         setIsDeleteModalOpen(false);
         setFileToDelete(null);
-        
-        // 顯示成功提示
         setSuccess('The file has been successfully deleted');
-        // 3秒後自動清除成功提示
         setTimeout(() => {
           setSuccess('');
         }, 3000);
@@ -306,16 +401,33 @@ const FilesPage = () => {
       setIsDeletingFile(false);
     }
   };
-  
-  const handleDeleteFile = (fileId: string) => {
-    setFileToDelete(fileId);
-    setIsDeleteModalOpen(true);
-  };
 
   const handleLogout = async () => {
     setIsLogoutLoading(true);
     
     try {
+      const privateKey = getCurrentUserPrivateKey();
+      if (!privateKey) {
+        throw new Error('Private key not found. Please log in again.');
+      }
+      
+      const actionSignature = await signAction('logout', privateKey);
+      const token = getAuthToken();
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ actionSignature })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to log logout action');
+      }
+
+
       await logoutUser();
       router.push('/login');
     } catch (error) {
@@ -708,6 +820,18 @@ const FilesPage = () => {
           </div>
         </div>
       )}
+
+      <PasswordVerificationModal
+        isOpen={passwordModalOpen}
+        onClose={() => {
+          setPasswordModalOpen(false);
+          setPendingAction(null);
+        }}
+        onSuccess={handlePasswordVerificationSuccess}
+        title={`Verify Password to ${pendingAction?.type === 'shareWithUser' ? 'Share' : 
+          pendingAction?.type ? pendingAction.type.charAt(0).toUpperCase() + pendingAction.type.slice(1) : 'Continue'} File`}
+        description="For additional security, please verify your password to continue with this operation."
+      />
     </div>
   );
 };

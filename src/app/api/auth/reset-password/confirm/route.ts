@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { hashPassword } from '../../../../../lib/auth';
-import { logAction, logError } from '../../../../../lib/logger';
 import { db } from '../../../../../db';
 import { users } from '../../../../../db/schema';
 import { eq } from 'drizzle-orm';
@@ -63,7 +62,6 @@ export async function POST(request: Request) {
       .execute();
 
     if (!userResult || userResult.length === 0) {
-      await logAction('Password reset failed: User not found', { userId });
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -73,7 +71,6 @@ export async function POST(request: Request) {
     const user = userResult[0];
     
     if (!user.publicKey) {
-      await logAction('Password reset failed: No public key for user', { userId });
       return NextResponse.json(
         { error: 'Authentication failed - no public key' },
         { status: 401 }
@@ -84,7 +81,6 @@ export async function POST(request: Request) {
     const isValid = await verifyHOTP(user.publicKey, hotpCode, counter);
 
     if (!isValid) {
-      await logAction('Password reset failed: Invalid code', { userId });
       return NextResponse.json(
         { error: 'Invalid authentication code' },
         { status: 401 }
@@ -103,13 +99,11 @@ export async function POST(request: Request) {
       .where(eq(users.id, userId))
       .execute();
 
-    await logAction('Password reset successful', { userId });
     
     return NextResponse.json({
       message: 'Password has been reset successfully'
     });
   } catch (error) {
-    await logError(error as Error, 'password-reset-confirm');
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

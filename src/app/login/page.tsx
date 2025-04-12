@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import LoginForm from '@/app/components/auth/LoginForm';
 import { extractPublicKeyFromPrivate, generateHOTP } from '@/app/utils/hotp';
+import { signAction } from '../utils/clientencryption';
 
 const LoginPage = () => {
     const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,8 @@ const LoginPage = () => {
                 setIsLoading(false);
                 return;
             }
+
+            const actionSignature = await signAction('login', credentials.privateKey);
             
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
@@ -50,7 +53,8 @@ const LoginPage = () => {
                 body: JSON.stringify({
                     usernameOrEmail: credentials.username,
                     password: credentials.password,
-                    publicKey: publicKey 
+                    publicKey: publicKey,
+                    actionSignature: actionSignature
                 }),
             });
 

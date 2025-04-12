@@ -2,7 +2,6 @@ import { db } from '../db';
 import { eq, ne, and, not, inArray } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { v4 as uuidv4 } from 'uuid';
-import { logAction, logError } from './logger';
 import { get } from 'http';
 
 /**
@@ -16,7 +15,6 @@ export const getFilesByUserId = async (userId: string) => {
     
     return files;
   } catch (error) {
-    await logError(error as Error, 'getFilesByUserId');
     throw error;
   }
 };
@@ -29,7 +27,6 @@ export const getFileById = async (id: string) => {
     const results = await db.select().from(schema.files).where(eq(schema.files.id, id));
     return results[0];
   } catch (error) {
-    await logError(error as Error, 'getFileById');
     throw error;
   }
 };
@@ -46,7 +43,6 @@ export const deleteFile = async (id: string, userId: string) => {
     }
     
     if (file.userId !== userId) {
-      await logAction(`Unauthorized file deletion attempt: ${id}`, { userId });
       throw new Error('Unauthorized to delete this file');
     }
     
@@ -55,11 +51,9 @@ export const deleteFile = async (id: string, userId: string) => {
     // Remove from database
     await db.delete(schema.files).where(eq(schema.files.id, id));
     
-    await logAction(`File deleted: ${id}`, { userId });
     
     return true;
   } catch (error) {
-    await logError(error as Error, 'deleteFile');
     throw error;
   }
 };
@@ -96,13 +90,11 @@ export const saveEncryptedFile = async (
       updatedAt: new Date().toISOString()
     });
     
-    await logAction(`File uploaded: ${fileId}`, { userId, size: metadata.size });
     
     return {
       fileId
     };
   } catch (error) {
-    await logError(error as Error, 'saveEncryptedFile');
     throw error;
   }
 };
@@ -130,7 +122,6 @@ export const updateEncryptedFile = async (
     }
     
     if (file.userId !== userId) {
-      await logAction(`Unauthorized file edit attempt: ${fileId}`, { userId });
       throw new Error('Unauthorized to edit this file');
     }
     
@@ -147,13 +138,11 @@ export const updateEncryptedFile = async (
       })
       .where(eq(schema.files.id, fileId));
     
-    await logAction(`File updated: ${fileId}`, { userId, size: metadata.size });
     
     return {
       fileId
     };
   } catch (error) {
-    await logError(error as Error, 'updateEncryptedFile');
     throw error;
   }
 };
@@ -166,7 +155,6 @@ export const isAuthorizedForFile = async (fileId: string, userId: string): Promi
     const file = await getFileById(fileId);
     return file && file.userId === userId;
   } catch (error) {
-    await logError(error as Error, 'isAuthorizedForFile');
     return false;
   }
 };
@@ -184,11 +172,9 @@ export const readEncryptedFile = async (fileId: string, userId: string) => {
     }
     
     if (file.userId !== userId) {
-      await logAction(`Unauthorized file access attempt: ${fileId}`, { userId });
       throw new Error('Unauthorized access');
     }
     
-    await logAction(`File downloaded: ${fileId}`, { userId });
     
     return {
       fileBuffer: file.fileData, // Get file data directly from database
@@ -201,7 +187,6 @@ export const readEncryptedFile = async (fileId: string, userId: string) => {
       }
     };
   } catch (error) {
-    await logError(error as Error, 'readEncryptedFile');
     throw error;
   }
 };
@@ -211,7 +196,6 @@ export const getFileKeyById = async (fileId: string) => {
     const file = await getFileById(fileId);
     return file.fileKey;
   } catch (error) {
-    await logError(error as Error, 'getFileKeyById');
     throw error;
   }
 }
@@ -256,15 +240,11 @@ export const getShareList = async (fileId: string) => {
       .from(schema.users)
       .where(conditions);
     
-    await logAction(`Retrieved share list for file: ${fileId}`, {
-      fileId,
-      availableUserCount: availableUsers.length
-    });
+
     
     return availableUsers;
     
   } catch (error) {
-    await logError(error as Error, 'getShareList');
     throw error;
   }
 }
@@ -278,7 +258,6 @@ export const getEncryptedFileKey = async (fileId: string) => {
     
     return file.fileKey;
   } catch (error) {
-    await logError(error as Error, 'getEncryptedFileKey');
     throw error;
   }
 }
@@ -301,7 +280,6 @@ export const readSharedFile = async (fileId: string, userId: string) => {
       );
       
     if (accessRecords.length === 0) {
-      await logAction(`Unauthorized shared file access attempt: ${fileId}`, { userId });
       throw new Error('Unauthorized access to this shared file');
     }
     
@@ -314,7 +292,6 @@ export const readSharedFile = async (fileId: string, userId: string) => {
       throw new Error('Shared file not found');
     }
     
-    await logAction(`Shared file accessed: ${fileId}`, { userId, ownerId: accessRecord.ownerId });
     
     // Returns the file contents and the user-specific encrypted file key
     return {
@@ -330,7 +307,6 @@ export const readSharedFile = async (fileId: string, userId: string) => {
     };
     
   } catch (error) {
-    await logError(error as Error, 'readSharedFile');
     throw error;
   }
 };
@@ -355,15 +331,11 @@ export const getSharedFilesForUser = async (userId: string) => {
       .from(schema.fileAccess)
       .innerJoin(schema.files, eq(schema.fileAccess.fileId, schema.files.id))
       .where(eq(schema.fileAccess.sharedWith, userId));
-    
-    await logAction(`Retrieved shared files list for user: ${userId}`, { 
-      count: sharedFiles.length 
-    });
+
     
     return sharedFiles;
     
   } catch (error) {
-    await logError(error as Error, 'getSharedFilesForUser');
     throw error;
   }
 };

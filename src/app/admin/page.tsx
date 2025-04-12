@@ -3,13 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  createdAt: string;
-}
-
 interface LogEntry {
   id: number;
   timestamp: string;

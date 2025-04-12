@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { prepareEncryptedFileUpload } from '@/app/utils/fileHelper';
+import { signAction } from '@/app/utils/clientencryption';
+import { getCurrentUserPrivateKey } from '@/app/utils/fileKeyEncryption';
 
 // Define FileItem interface
 interface FileItem {
@@ -118,6 +120,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUploaded, isEdit = false,
                 ? '/api/files/edit' 
                 : '/api/files/upload';
             
+
+            const privateKey = getCurrentUserPrivateKey();
+            if (!privateKey) {
+                setError('Private key not found. Please log in again');
+                setIsUploading(false);
+                return;
+            }
+            const actionSignature = await signAction("upload", privateKey);
+            formData.append('actionSignature', actionSignature);
             // Upload encrypted file
             const response = await axios.post(uploadEndpoint, formData, {
                 headers: {
