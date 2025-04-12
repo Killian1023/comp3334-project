@@ -128,98 +128,9 @@ const PasswordResetForm: React.FC<PasswordResetFormProps> = ({
 
     if (showPasswordForm || showHotpInput) {
         return (
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-800">Set New Password</h2>
-                </div>
-                <div className="p-6">
-                    {error && (
-                        <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-sm">
-                            <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div className="ml-3">
-                                    <p className="text-sm">{error}</p>
-                                    <button 
-                                        className="text-xs text-red-600 hover:text-red-800 font-medium underline mt-1" 
-                                        onClick={() => setError('')}
-                                    >
-                                        Close
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    <form onSubmit={handlePasswordSubmit} className="space-y-4">
-                        <div>
-                            <label htmlFor="hotpCode" className="block mb-2 text-sm font-medium text-gray-700">Authentication Code</label>
-                            <Input
-                                id="hotpCode"
-                                type="text"
-                                placeholder="6-digit code"
-                                value={hotpCode}
-                                onChange={(e) => setHotpCode(e.target.value)}
-                                disabled={isLoading}
-                                maxLength={6}
-                            />
-                            <p className="mt-1 text-xs text-gray-500">
-                                Enter the 6-digit code generated from your private key
-                            </p>
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700">New Password</label>
-                            <Input
-                                id="password"
-                                type="password"
-                                placeholder="Enter new password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                disabled={isLoading}
-                            />
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="confirmPassword" className="block mb-2 text-sm font-medium text-gray-700">Confirm Password</label>
-                            <Input
-                                id="confirmPassword"
-                                type="password"
-                                placeholder="Confirm new password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                disabled={isLoading}
-                            />
-                        </div>
-                        
-                        <Button 
-                            type="submit" 
-                            disabled={isLoading}
-                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                            {isLoading ? (
-                                <div className="flex items-center">
-                                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Processing...
-                                </div>
-                            ) : 'Reset Password'}
-                        </Button>
-                    </form>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-800">Reset Password</h2>
-            </div>
-            <div className="p-6">
+            <form onSubmit={handlePasswordSubmit} className="space-y-6">
                 {error && (
-                    <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-sm">
+                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
                         <div className="flex">
                             <div className="flex-shrink-0">
                                 <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -228,63 +139,150 @@ const PasswordResetForm: React.FC<PasswordResetFormProps> = ({
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm">{error}</p>
-                                <button 
-                                    className="text-xs text-red-600 hover:text-red-800 font-medium underline mt-1" 
-                                    onClick={() => setError('')}
-                                >
-                                    Close
-                                </button>
                             </div>
                         </div>
                     </div>
                 )}
-                <form onSubmit={handleUsernameSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="usernameOrEmail" className="block mb-2 text-sm font-medium text-gray-700">Username or Email</label>
+                
+                <div>
+                    <label htmlFor="hotpCode" className="block text-sm font-medium text-gray-700">
+                        Authentication Code
+                    </label>
+                    <div className="mt-1">
                         <Input
-                            id="usernameOrEmail"
+                            id="hotpCode"
                             type="text"
-                            placeholder="Enter your username or email"
-                            value={usernameOrEmail}
-                            onChange={(e) => setUsernameOrEmail(e.target.value)}
+                            placeholder="6-digit code"
+                            value={hotpCode}
+                            onChange={(e) => setHotpCode(e.target.value)}
                             disabled={isLoading}
+                            maxLength={6}
+                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                         />
                     </div>
-                    
-                    <div>
-                        <label htmlFor="privateKey" className="block mb-2 text-sm font-medium text-gray-700">Private Key</label>
-                        <textarea
-                            id="privateKey"
-                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                            placeholder="Enter your private key"
-                            value={privateKey}
-                            onChange={(e) => setPrivateKey(e.target.value)}
-                            rows={3}
+                    <p className="mt-1 text-xs text-gray-500">
+                        Enter the 6-digit code generated from your private key
+                    </p>
+                </div>
+                
+                <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                        New Password
+                    </label>
+                    <div className="mt-1">
+                        <Input
+                            id="password"
+                            type="password"
+                            placeholder="Enter new password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             disabled={isLoading}
-                            required
+                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                         />
-                        <p className="mt-1 text-xs text-gray-500">
-                            This was provided to you during registration. You need it to reset your password.
-                        </p>
                     </div>
-                    
-                    <div className="mt-4">
-                        <Button 
-                            type="submit" 
+                </div>
+                
+                <div>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                        Confirm Password
+                    </label>
+                    <div className="mt-1">
+                        <Input
+                            id="confirmPassword"
+                            type="password"
+                            placeholder="Confirm new password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
                             disabled={isLoading}
-                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                            {isLoading ? (
-                                <div className="flex items-center">
-                                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Verifying...
-                                </div>
-                            ) : 'Continue'}
-                        </Button>
+                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        />
                     </div>
-                </form>
+                </div>
+                
+                <Button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    {isLoading ? (
+                        <div className="flex items-center">
+                            <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Processing...
+                        </div>
+                    ) : 'Reset Password'}
+                </Button>
+            </form>
+        );
+    }
+
+    return (
+        <form onSubmit={handleUsernameSubmit} className="space-y-6">
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm">{error}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            <div>
+                <label htmlFor="usernameOrEmail" className="block text-sm font-medium text-gray-700">
+                    Username or Email
+                </label>
+                <div className="mt-1">
+                    <Input
+                        id="usernameOrEmail"
+                        type="text"
+                        placeholder="Enter your username or email"
+                        value={usernameOrEmail}
+                        onChange={(e) => setUsernameOrEmail(e.target.value)}
+                        disabled={isLoading}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                </div>
             </div>
-        </div>
+            
+            <div>
+                <label htmlFor="privateKey" className="block text-sm font-medium text-gray-700">
+                    Private Key
+                </label>
+                <div className="mt-1">
+                    <textarea
+                        id="privateKey"
+                        className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
+                        placeholder="Enter your private key"
+                        value={privateKey}
+                        onChange={(e) => setPrivateKey(e.target.value)}
+                        rows={3}
+                        disabled={isLoading}
+                        required
+                    />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                    This was provided to you during registration. You need it to reset your password.
+                </p>
+            </div>
+            
+            <Button 
+                type="submit" 
+                disabled={isLoading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+                {isLoading ? (
+                    <div className="flex items-center">
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Verifying...
+                    </div>
+                ) : 'Continue'}
+            </Button>
+        </form>
     );
 };
 

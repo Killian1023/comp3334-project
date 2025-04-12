@@ -38,39 +38,41 @@ const ResetPasswordPage = () => {
     };
 
     return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
-                <div className="flex items-center space-x-4">
-                    <Link href="/login" className="text-sm text-blue-600 hover:text-blue-800">
-                        Back to Login
-                    </Link>
-                </div>
+        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+            <div className="sm:mx-auto sm:w-full sm:max-w-md">
+                <h1 className="text-center text-3xl font-extrabold text-gray-900 mb-8">
+                    Reset Password
+                </h1>
             </div>
-            
-            {status === 'success' && (
-                <div className="mb-6 bg-green-50 border-l-4 border-green-500 text-green-700 p-4 rounded-md shadow-sm">
-                    <div className="flex">
-                        <div className="flex-shrink-0">
-                            <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
+
+            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+                <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                    {status === 'success' && (
+                        <div className="mb-6 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded">
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm">{message}</p>
+                                </div>
+                            </div>
                         </div>
-                        <div className="ml-3">
-                            <p className="text-sm">{message}</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <div className="lg:col-span-2">
+                    )}
+                    
                     <PasswordResetForm 
                         onResetRequest={handleResetRequest}
                         onResetPassword={handleResetPassword}
                         isLoading={isLoading}
                     />
+                    
+                    <div className="mt-6 text-center">
+                        <Link href="/files" className="text-sm text-blue-600 hover:text-blue-800">
+                            Back to Homepage
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>
