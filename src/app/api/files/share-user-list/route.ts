@@ -4,7 +4,7 @@ import { getShareList, getAllUsers } from '@/lib/file';
 
 export async function GET(request: NextRequest) {
   try {
-    // 獲取文件ID參數
+    // Get file ID parameter
     const fileId = request.nextUrl.searchParams.get('fileId');
     if (!fileId) {
       return NextResponse.json(
@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // 获取查询类型参数
+    // Get query type parameter
     const type = request.nextUrl.searchParams.get('type') || 'shared';
     
-    // 驗證身份
+    // Verify identity
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json(
@@ -34,13 +34,13 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // 根据type参数获取不同的用户列表
+    // Get different user lists based on type parameter
     let users;
     if (type === 'all') {
-      // 获取所有可分享的用户列表（排除当前用户和已分享的用户）
+      // Get all users that can be shared with 
       users = await getAllUsers(fileId, userId);
     } else {
-      // 获取已分享的用户列表
+      // Get list of users the file is already shared with
       users = await getShareList(fileId);
     }
     

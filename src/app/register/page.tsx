@@ -26,12 +26,12 @@ const RegisterPage = () => {
             setIsLoading(true);
             console.log(`Registration attempt for user: ${data.username}`);
             
-            // 在客户端生成密钥对
+            // Generate key pair on the client side
             const keyPair = await generateKeyPairECC();
             setPrivateKey(keyPair.privateKey);
             setPublicKey(keyPair.publicKey);
             
-            // 发送请求到服务器，包含用户信息和公钥
+            // Send request to server, including user information and public key
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
@@ -39,7 +39,7 @@ const RegisterPage = () => {
                 },
                 body: JSON.stringify({
                     ...data,
-                    publicKey: keyPair.publicKey // 将公钥发送给服务器
+                    publicKey: keyPair.publicKey // Send the public key to the server
                 }),
             });
 

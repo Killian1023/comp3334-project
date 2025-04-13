@@ -10,7 +10,7 @@ export interface KeyPair {
 
 export async function generateKeyPairECC(): Promise<KeyPair> {
   try {
-    // 使用P-256椭圆曲线和ECDH算法生成密钥对，适用于加密而不是签名
+    // Using P-256 elliptic curve and ECDH algorithm to generate key pair, suitable for encryption rather than signing
     const { publicKey, privateKey } = await generateKeyPair('ECDH-ES', {
       crv: 'P-256',
       extractable: true

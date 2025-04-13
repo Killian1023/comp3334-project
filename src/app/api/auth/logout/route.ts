@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logActionWithSignature } from '@/lib/logger';
-import { verifyToken } from '@/lib/auth';
+import { getUserById, verifyToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
     const userId = await verifyToken(token);
     if (!userId) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }    
+    }
+    const user = await getUserById(userId);
     // Get the action signature from request body
     const { actionSignature } = await request.json();
     if (!actionSignature) {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     
     // Log the action with signature for non-repudiation
     await logActionWithSignature(
-      'User logged out', 
+      `User logged out: ${user?.username}`, 
       userId,
       actionSignature,
       { timestamp: new Date().toISOString() }

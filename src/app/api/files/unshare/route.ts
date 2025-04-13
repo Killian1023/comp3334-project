@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File not found' }, { status: 400 });
     }
 
-    // 检查是否是文件所有者或被分享的用户
+    // Check if the current user is the file owner or the shared user
     const [fileAccessRecord] = await db
       .select()
       .from(fileAccess)
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Share record not found' }, { status: 400 });
     }
 
-    // 允许文件所有者或被分享的用户取消分享
+    // Allow the file owner or the shared user to cancel sharing
     if (fileRecord.userId !== user.id && sharedWithUserId !== user.id) {
       return NextResponse.json({ error: 'You do not have permission to unshare this file' }, { status: 403 });
     }
@@ -94,4 +94,4 @@ export async function POST(request: NextRequest) {
     console.error('Error unsharing file:', error);
     return NextResponse.json({ error: 'An error occurred while processing the request' }, { status: 500 });
   }
-} 
+}

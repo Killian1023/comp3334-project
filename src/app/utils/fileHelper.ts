@@ -158,8 +158,8 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string, isS
     console.log('File blob received, size:', fileData.size);
     
     const iv = response.headers.get('X-Encryption-IV');
-    const encryptedFileKey = response.headers.get('X-File-Key');  // 获取加密的文件密钥
-    const originalName = response.headers.get('X-Original-Name'); // 获取原始文件名而不是加密的文件名
+    const encryptedFileKey = response.headers.get('X-File-Key');  // Get the encrypted file key
+    const originalName = response.headers.get('X-Original-Name'); // Get the original file name instead of the encrypted file name
     
     console.log('Headers received:', { 
       iv: iv ? `${iv.substring(0, 10)}...` : 'missing',
@@ -171,19 +171,19 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string, isS
       throw new Error('Missing encryption metadata in server response');
     }
     
-    // 获取用户私钥
+    // Get the user's private key
     const privateKey = getCurrentUserPrivateKey();
     if (!privateKey) {
       throw new Error('Private key not found. Please log in again.');
     }
     
-    // 使用私钥解密文件密钥
+    // Use private key to decrypt the file key
     const fileKey = await decryptFileKey(encryptedFileKey, privateKey);
     console.log('File key successfully decrypted');
-    // 测试用途：输出解密后的文件密钥
-    console.log('解密后的文件密钥（测试用途）:', fileKey);
+    // For testing purposes: output the decrypted file key
+    console.log('Decrypted file key (for testing purposes):', fileKey);
     
-    // 使用解密后的文件密钥解密文件内容（不需要解密文件名）
+    // Use the decrypted file key to decrypt the file content (no need to decrypt the file name)
     const decryptedData = await decryptFileContent(
       await fileData.arrayBuffer(),
       iv,
@@ -195,7 +195,7 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string, isS
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = originalName; // 使用原始文件名
+    a.download = originalName; // Use the original file name
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
@@ -214,7 +214,7 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string, isS
 };
 
 /**
- * 只解密文件内容
+ * Decrypt only the file content
  */
 export const decryptFileContent = async (
   encryptedData: ArrayBuffer,
@@ -256,9 +256,9 @@ export const decryptFileContent = async (
 };
 
 /**
- * 使用独立文件密钥加密文件以便上传
- * @param file - 要加密的文件
- * @returns 包含加密数据、文件密钥和IV的对象
+ * Encrypt a file for upload using a separate file key
+ * @param file - The file to be encrypted
+ * @returns An object containing encrypted data, file key, and IV
  */
 export const encryptFileForUpload = async (file: File): Promise<{
   encryptedData: ArrayBuffer;
@@ -269,15 +269,15 @@ export const encryptFileForUpload = async (file: File): Promise<{
   size: number;
 }> => {
   try {
-    // 使用fileKey.ts中的函数生成文件密钥和IV
+    // Generate file key and IV using functions from fileKey.ts
     const { fileKey, iv } = generateFileKeyAndIV();
     const ivArray = base64ToBuffer(iv);
     const fileKeyArray = base64ToBuffer(fileKey);
     
-    // 读取文件内容
+    // Read file content
     const fileContent = await file.arrayBuffer();
     
-    // 从fileKey导入加密密钥
+    // Import encryption key from fileKey
     const cryptoKey = await window.crypto.subtle.importKey(
       'raw',
       fileKeyArray,
@@ -286,7 +286,7 @@ export const encryptFileForUpload = async (file: File): Promise<{
       ['encrypt', 'decrypt']
     );
     
-    // 加密文件内容
+    // Encrypt file content
     const encryptedData = await window.crypto.subtle.encrypt(
       {
         name: 'AES-GCM',
@@ -296,7 +296,7 @@ export const encryptFileForUpload = async (file: File): Promise<{
       fileContent
     );
     
-    // 不再加密文件名，直接使用原始文件名
+    // No longer encrypt the file name, use the original file name directly
     const originalName = file.name;
     
     return {
@@ -308,33 +308,33 @@ export const encryptFileForUpload = async (file: File): Promise<{
       size: file.size
     };
   } catch (error) {
-    console.error('文件加密失败:', error);
-    throw new Error('无法加密文件。请重试。');
+    console.error('File encryption failed:', error);
+    throw new Error('Failed to encrypt file. Please try again.');
   }
 };
 
 /**
- * 准备加密文件的FormData用于上传（使用独立且加密的文件密钥）
+ * Prepare FormData for encrypted file upload (using a separate and encrypted file key)
  */
 export const prepareEncryptedFileUpload = async (file: File): Promise<FormData> => {
-  // 获取加密的文件数据和原始密钥
+  // Get encrypted file data and original key
   const { encryptedData, fileKey, iv, originalName, originalType, size } = await encryptFileForUpload(file);
   
-  // 测试用途：输出文件密钥信息
-  console.log('原始文件密钥（测试）:', fileKey);
-  console.log('IV（测试）:', iv);
+  // For testing purposes: output file key information
+  console.log('Original file key (test):', fileKey);
+  console.log('IV (test):', iv);
   
-  // 获取当前用户的公钥
+  // Get the current user's public key
   const publicKey = getCurrentUserPublicKey();
   if (!publicKey) {
-    throw new Error('无法获取用户公钥，请重新登录');
+    throw new Error('Unable to retrieve user public key, please log in again');
   }
   
-  // 使用用户的公钥加密文件密钥
+  // Encrypt file key using user's public key
   const encryptedFileKey = await encryptFileKey(fileKey, publicKey);
-  console.log('文件密钥已使用用户公钥加密');
+  console.log('File key has been encrypted using user public key');
   
-  // 创建一个包含加密数据的新文件
+  // Create a new file containing encrypted data
   const encryptedFile = new File(
     [encryptedData], 
     `encrypted_${Date.now()}`,
@@ -343,7 +343,7 @@ export const prepareEncryptedFileUpload = async (file: File): Promise<FormData> 
   
   const formData = new FormData();
   formData.append('file', encryptedFile);
-  formData.append('fileKey', encryptedFileKey); // 使用加密后的文件密钥
+  formData.append('fileKey', encryptedFileKey); // Use the encrypted file key
   formData.append('iv', iv);
   formData.append('originalName', originalName);
   formData.append('originalType', originalType);

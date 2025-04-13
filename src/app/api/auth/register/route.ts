@@ -26,7 +26,7 @@ const generateToken = (userId: string): string => {
 export async function POST(request: Request) {
   try {
     
-    // 接收客户端发送的公钥
+    // 
     const { username, password, email, publicKey } = await request.json();
     
     // Validation
@@ -47,8 +47,6 @@ export async function POST(request: Request) {
     }
     
     try {
-      // 不再生成密钥对，使用客户端提供的公钥
-      // const { publicKey, privateKey } = await generateKeyPairECC();
       
       // Hash the password
       const passwordHash = await hashPassword(password);

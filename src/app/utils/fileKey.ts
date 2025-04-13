@@ -1,15 +1,15 @@
 /**
- * 為文件生成加密所需的 fileKey 和 IV
- * @returns 包含 fileKey 和 IV 的物件，均為 Base64 編碼的字串
+ * Generate fileKey and IV required for file encryption
+ * @returns An object containing fileKey and IV, both as Base64 encoded strings
  */
 export function generateFileKeyAndIV(): { fileKey: string; iv: string } {
-    // 生成一個 32 位元組（256 位元）的隨機 fileKey，適用於 AES-256
+    // Generate a random 32-byte (256-bit) fileKey, suitable for AES-256
     const fileKey = window.crypto.getRandomValues(new Uint8Array(32));
     
-    // 生成一個 16 位元組（128 位元）的隨機 IV，適用於大多數加密模式（如 AES-CBC, AES-GCM）
+    // Generate a random 16-byte (128-bit) IV, suitable for most encryption modes (like AES-CBC, AES-GCM)
     const iv = window.crypto.getRandomValues(new Uint8Array(16));
     
-    // 將 Uint8Array 轉換為 Base64 字串
+    // Convert Uint8Array to Base64 string
     const fileKeyBase64 = bufferToBase64(fileKey);
     const ivBase64 = bufferToBase64(iv);
     
@@ -20,9 +20,9 @@ export function generateFileKeyAndIV(): { fileKey: string; iv: string } {
   }
   
   /**
-   * 將 Uint8Array 轉換為 Base64 字串
-   * @param buffer - 要轉換的 Uint8Array
-   * @returns Base64 編碼的字串
+   * Convert Uint8Array to Base64 string
+   * @param buffer - Uint8Array to be converted
+   * @returns Base64 encoded string
    */
   export function bufferToBase64(buffer: Uint8Array): string {
     let binary = '';
@@ -34,9 +34,9 @@ export function generateFileKeyAndIV(): { fileKey: string; iv: string } {
   }
   
   /**
-   * 將 Base64 字串轉換回 Uint8Array
-   * @param base64 - Base64 編碼的字串
-   * @returns 解碼後的 Uint8Array
+   * Convert Base64 string back to Uint8Array
+   * @param base64 - Base64 encoded string
+   * @returns Decoded Uint8Array
    */
   export function base64ToBuffer(base64: string): Uint8Array {
     const binaryString = atob(base64);

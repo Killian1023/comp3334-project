@@ -30,8 +30,6 @@ export async function POST(request: Request) {
 
     const user = userResult[0];
     
-    // You would need to add a 'counter' field to your users table
-    // If it doesn't exist, use a default starting value
     const currentCounter = user.counter || 0;
     const nextCounter = currentCounter + 1;
     

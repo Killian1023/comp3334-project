@@ -6,7 +6,6 @@ import { db } from '../../../../db';
 import { eq } from 'drizzle-orm';
 import { users } from '../../../../db/schema';
 
-// In a real application, store this in environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-for-development-only';
 const JWT_EXPIRES_IN = '24h';
 
@@ -44,25 +43,26 @@ export async function POST(request: Request) {
       );
     }
     
-    // 如果提供了公钥，验证它是否匹配
+    // If a public key was provided, verify if it matches
     if (publicKey && user.publicKey !== publicKey) {
       
-      // 对用户来说，他们的私钥可能已经失效或不匹配
-      // 如果客户端提供了公钥但与存储的不匹配，则更新数据库中的公钥
+      // For users, their private key may be invalid or not matching
       await db.update(users)
         .set({ publicKey })
         .where(eq(users.id, user.id))
         .execute();
       
       
-      // 更新用户对象以反映新的公钥
+      // Update the user object to reflect the new public key
       user.publicKey = publicKey;
     }
 
     // Generate JWT token with the user ID
     const token = generateToken(user.id);
 
-    await logActionWithSignature(`User logged in: ${user.username}`, user.id, actionSignature);
+    await logActionWithSignature(`User logged in: ${user.username}`, user.id, actionSignature, {
+      timestamp: new Date().toISOString()
+    });
 
     // Return the token and user info (excluding sensitive data)
     const { passwordHash, ...userWithoutPassword } = user;

@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    // 驗證身份
+    // Verify identity
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json(
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // 獲取目標用戶ID
+    // Get target user ID
     const targetUserId = request.nextUrl.searchParams.get('userId');
     if (!targetUserId) {
       return NextResponse.json(
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // 獲取用戶公鑰
+    // Get user's public key
     const publicKey = await getUserPublicKeyById(targetUserId);
     
     if (!publicKey) {

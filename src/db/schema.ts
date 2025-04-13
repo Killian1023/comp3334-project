@@ -3,13 +3,13 @@ import { sql } from 'drizzle-orm';
 import { count } from 'console';
 
 
-// User表加一個public key
+// Add a public key to the User table
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   username: text('username').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
-  publicKey: text('public_key').notNull(), // 用戶的公鑰
+  publicKey: text('public_key').notNull(), // User's public key
   counter: integer('counter').default(0).notNull(),
   email: text('email').notNull().unique(),
   createdAt: text('created_at')
@@ -38,12 +38,12 @@ export const files = sqliteTable('files', {
     .notNull(),
 });
 
-// 新增File Access表，1. 共享人 2. Owner 3. 共享人的encrypted file key 4. FileID
-// 一個共享人一個文件一條記錄
+// Add File Access table with: 1. Shared user 2. Owner 3. Shared user's encrypted file key 4. FileID
+// One record per shared user per file
 export const fileAccess = sqliteTable('file_access', {
   id: text('id').primaryKey(),
   fileId: text('file_id').notNull().references(() => files.id),
-  sharedWith: text('shared_with').notNull(), // 單個共享人
+  sharedWith: text('shared_with').notNull(), // Individual shared user
   ownerId: text('owner_id').notNull().references(() => users.id), // Owner of the file
   encryptedFileKey: text('encrypted_file_key').notNull(), // Encrypted file key for the shared user
   createdAt: text('created_at')

@@ -3,16 +3,16 @@ import { verifyToken } from '@/lib/auth';
 import { getSharedFilesForUser } from '@/lib/file';
 
 /**
- * 獲取已分享給當前用戶的檔案列表
+ * Get the list of files shared with the current user
  * 
- * 身份驗證:
- * - 需要 Bearer token 用於身份驗證
+ * Authentication:
+ * - Requires Bearer token for authentication
  * 
- * 返回已分享給當前用戶的所有檔案清單
+ * Returns a list of all files shared with the current user
  */
 export async function GET(request: NextRequest) {
   try {
-    // 1. 驗證用戶身份
+    // 1. Verify user identity
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized access' }, { status: 401 });
@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid authentication token' }, { status: 401 });
     }
 
-    // 2. 獲取分享給當前用戶的檔案列表
+    // 2. Get the list of files shared with the current user
     const sharedFiles = await getSharedFilesForUser(userId);
 
-    // 3. 記錄操作並返回檔案列表
+    // 3. Log the operation and return the file list
     return NextResponse.json({ files: sharedFiles });
     
   } catch (error) {

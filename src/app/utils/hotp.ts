@@ -15,8 +15,6 @@ export async function generateHOTP(privateKeyBase64: string, counter: number): P
       counter = counter >> 8;
     }
 
-    // Instead of signing with the private key, use SHA-256 directly on the counter
-    // This ensures compatibility with the server-side verification
     const hashBuffer = await window.crypto.subtle.digest('SHA-256', counterBytes);
     const hashArray = new Uint8Array(hashBuffer);
     
