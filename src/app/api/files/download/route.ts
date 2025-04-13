@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { readEncryptedFile, readSharedFile } from '@/lib/file';
+import { sanitizeFileName } from '@/app/utils/fileSecurity';
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,13 +43,16 @@ export async function GET(request: NextRequest) {
       metadata = result.metadata;
     }
     
+    // Sanitize the original file name
+    const safeFileName = sanitizeFileName(metadata.originalName);
+    
     // Log the metadata to ensure it's correct
     console.log('Sending file download with metadata:', {
       fileId,
       iv: metadata.iv,
       ivLength: metadata.iv?.length,
       fileKey: metadata.fileKey ? 'present' : 'missing',
-      originalName: metadata.originalName,
+      originalName: safeFileName,
       type: metadata.originalType
     });
     
@@ -56,10 +60,10 @@ export async function GET(request: NextRequest) {
     return new NextResponse(fileBuffer as Buffer, {
       headers: {
         'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename=${fileId}.enc`,
+        'Content-Disposition': `attachment; filename=${safeFileName}.enc`,
         'X-Encryption-IV': metadata.iv,
         'X-File-Key': metadata.fileKey,
-        'X-Original-Name': metadata.originalName,
+        'X-Original-Name': safeFileName,
         'X-Original-Type': metadata.originalType,
         // Adding cache control to prevent caching issues
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
