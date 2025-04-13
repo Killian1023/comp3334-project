@@ -51,12 +51,19 @@ const FilesPage = () => {
   
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
-    type: 'download' | 'edit' | 'share' | 'delete' | 'shareWithUser';
+    type: 'download' | 'edit' | 'share' | 'delete' | 'shareWithUser' | 'unshare';
     fileId?: string;
     file?: FileItem;
     userId?: string;
     isShare?: string;
   } | null>(null);
+
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const [showUnshareModal, setShowUnshareModal] = useState(false);
+  const [sharedUsers, setSharedUsers] = useState<ShareUser[]>([]);
+  const [loadingSharedUsers, setLoadingSharedUsers] = useState(false);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -159,50 +166,25 @@ const FilesPage = () => {
   };
 
   const handleShare = (fileId: string) => {
-    setPendingAction({
-      type: 'share',
-      fileId
-    });
-    setPasswordModalOpen(true);
-  };
-
-  const executeShare = async (fileId: string) => {
-    const user = getCurrentUser();
-    const token = getAuthToken();
+    setCurrentFileId(fileId);
+    setLoadingShareList(true);
     
-    if (!user || !token) {
-      setError('Authentication required to share files');
-      setTimeout(() => router.push('/login'), 1000);
-      return;
-    }
-    
-    try {
-      setIsSharingFile(fileId);
-      setCurrentFileId(fileId);
-      setLoadingShareList(true);
-      
-      const response = await fetch(`/api/files/share-user-list?fileId=${fileId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+    fetch(`/api/files/share-user-list?fileId=${fileId}&type=all`, {
+      headers: {
+        'Authorization': `Bearer ${getAuthToken()}`
+      }
+    })
+      .then(response => response.json())
+      .then(data => {
         setShareUsers(data.users);
         setShowShareModal(true);
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to get share list');
-      }
-    } catch (error) {
-      const errorMessage = (error as Error).message;
-      setError('Error sharing file: ' + errorMessage);
-      console.error('Share error details:', error);
-    } finally {
-      setIsSharingFile(null);
-      setLoadingShareList(false);
-    }
+      })
+      .catch(error => {
+        setError('Error loading user list: ' + error.message);
+      })
+      .finally(() => {
+        setLoadingShareList(false);
+      });
   };
 
   const handleShareWithUser = (userId: string) => {
@@ -278,7 +260,11 @@ const FilesPage = () => {
       
       if (response.ok) {
         setShowShareModal(false);
-        alert('File shared successfully');
+        setToastMessage('File shared successfully');
+        setShowSuccessToast(true);
+        setTimeout(() => {
+          setShowSuccessToast(false);
+        }, 3000);
       } else {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to share file');
@@ -288,6 +274,119 @@ const FilesPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleUnshare = async (fileId: string) => {
+    setCurrentFileId(fileId);
+    setLoadingSharedUsers(true);
+    
+    try {
+      const response = await fetch(`/api/files/share-user-list?fileId=${fileId}&type=shared`, {
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSharedUsers(data.users);
+        setShowUnshareModal(true);
+      } else {
+        setError('Error loading shared users list');
+      }
+    } catch (error) {
+      setError('Error loading shared users list: ' + (error as Error).message);
+    } finally {
+      setLoadingSharedUsers(false);
+    }
+  };
+
+  const handleUnshareWithUser = (userId: string) => {
+    setPendingAction({
+      type: 'unshare',
+      userId
+    });
+    setPasswordModalOpen(true);
+  };
+
+  const executeUnshareWithUser = async (userId: string) => {
+    const token = getAuthToken();
+    if (!token || !currentFileId) return;
+    
+    try {
+      setIsLoading(true);
+      const privateKey = getCurrentUserPrivateKey();
+      if (!privateKey) {
+        throw new Error('Private key not found. Please log in again.');
+      }
+
+      const actionSignature = await signAction('unshare', privateKey);
+
+      const response = await fetch('/api/files/unshare', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          fileId: currentFileId,
+          sharedWithUserId: userId,
+          actionSignature: actionSignature
+        })
+      });
+      
+      if (response.ok) {
+        setShowUnshareModal(false);
+        setToastMessage('File unshared successfully');
+        setShowSuccessToast(true);
+        setTimeout(() => {
+          setShowSuccessToast(false);
+        }, 3000);
+        fetchFiles(); // Refresh the file list
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to unshare file');
+      }
+    } catch (error) {
+      setError('Error unsharing file: ' + (error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordVerificationSuccess = () => {
+    if (!pendingAction) return;
+
+    switch (pendingAction.type) {
+      case 'download':
+        if (pendingAction.fileId) {
+          executeDownload(pendingAction.fileId, pendingAction.isShare);
+        }
+        break;
+      case 'edit':
+        if (pendingAction.file) {
+          executeEdit(pendingAction.file);
+        }
+        break;
+      case 'delete':
+        if (pendingAction.fileId) {
+          executeDeleteFile(pendingAction.fileId);
+        }
+        break;
+      case 'shareWithUser':
+        if (pendingAction.userId) {
+          executeShareWithUser(pendingAction.userId);
+        }
+        break;
+      case 'unshare':
+        if (pendingAction.userId) {
+          executeUnshareWithUser(pendingAction.userId);
+        }
+        break;
+    }
+
+    setPasswordModalOpen(false);
+    setPendingAction(null);
   };
 
   const handleEdit = (file: FileItem) => {
@@ -314,41 +413,6 @@ const FilesPage = () => {
   const executeDeleteFile = (fileId: string) => {
     setFileToDelete(fileId);
     setIsDeleteModalOpen(true);
-  };
-
-  const handlePasswordVerificationSuccess = () => {
-    if (!pendingAction) return;
-
-    switch (pendingAction.type) {
-      case 'download':
-        if (pendingAction.fileId) {
-          executeDownload(pendingAction.fileId, pendingAction.isShare);
-        }
-        break;
-      case 'edit':
-        if (pendingAction.file) {
-          executeEdit(pendingAction.file);
-        }
-        break;
-      case 'share':
-        if (pendingAction.fileId) {
-          executeShare(pendingAction.fileId);
-        }
-        break;
-      case 'delete':
-        if (pendingAction.fileId) {
-          executeDeleteFile(pendingAction.fileId);
-        }
-        break;
-      case 'shareWithUser':
-        if (pendingAction.userId) {
-          executeShareWithUser(pendingAction.userId);
-        }
-        break;
-    }
-
-    setPasswordModalOpen(false);
-    setPendingAction(null);
   };
 
   const handleEditSuccess = () => {
@@ -511,6 +575,18 @@ const FilesPage = () => {
         </div>
       )}
       
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="fixed top-4 right-4 z-50">
+          <div className="bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-lg shadow-lg flex items-center space-x-2">
+            <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">
           <div className="sticky top-8">
@@ -585,46 +661,80 @@ const FilesPage = () => {
                             </p>
                           </div>
                           <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEdit(file)}
-                              className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                              disabled={isLoading}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleShare(file.id)}
-                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                              disabled={isLoading || isSharingFile === file.id}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                              </svg>
-                              Share
-                            </button>
-                            <button
-                              onClick={() => handleDownload(file.id, "false")}
-                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                              disabled={isLoading}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                              Download
-                            </button>
-                            <button
-                              onClick={() => handleDeleteFile(file.id)}
-                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                              disabled={isLoading}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                              Delete
-                            </button>
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleEdit(file)}
+                                className="p-2 bg-white hover:bg-gray-100 text-green-600 rounded-md border border-gray-200 flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+                                disabled={isLoading}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <div className="absolute z-10 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                Edit
+                              </div>
+                            </div>
+                            
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleDownload(file.id, "false")}
+                                className="p-2 bg-white hover:bg-gray-100 text-blue-600 rounded-md border border-gray-200 flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                disabled={isLoading}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </button>
+                              <div className="absolute z-10 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                Download
+                              </div>
+                            </div>
+                            
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleDeleteFile(file.id)}
+                                className="p-2 bg-white hover:bg-gray-100 text-red-600 rounded-md border border-gray-200 flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                                disabled={isLoading}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                              <div className="absolute z-10 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                Delete
+                              </div>
+                            </div>
+                            
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleShare(file.id)}
+                                className="p-2 bg-white hover:bg-gray-100 text-purple-600 rounded-md border border-gray-200 flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1"
+                                disabled={isLoading || isSharingFile === file.id}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                </svg>
+                              </button>
+                              <div className="absolute z-10 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                Share
+                              </div>
+                            </div>
+                            
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleUnshare(file.id)}
+                                className="p-2 bg-white hover:bg-gray-100 text-orange-600 rounded-md border border-gray-200 flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1"
+                                disabled={isLoading}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+                                </svg>
+                              </button>
+                              <div className="absolute z-10 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                Unshare
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -670,16 +780,35 @@ const FilesPage = () => {
                             </p>
                           </div>
                           <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleDownload(file.id,"true")}
-                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                              disabled={isLoading}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                              Download
-                            </button>
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleDownload(file.id,"true")}
+                                className="p-2 bg-white hover:bg-gray-100 text-blue-600 rounded-md border border-gray-200 flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                disabled={isLoading}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </button>
+                              <div className="absolute z-10 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                Download
+                              </div>
+                            </div>
+                            
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleUnshare(file.id)}
+                                className="p-2 bg-white hover:bg-gray-100 text-red-600 rounded-md border border-gray-200 flex items-center transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                                disabled={isLoading}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                </svg>
+                              </button>
+                              <div className="absolute z-10 invisible group-hover:visible bg-gray-800 text-white text-xs rounded py-1 px-2 -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                Unshare
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -816,6 +945,58 @@ const FilesPage = () => {
                   {isDeletingFile ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showUnshareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">
+                Shared Users
+              </h3>
+              <button
+                onClick={() => setShowUnshareModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Select a user to unshare with.
+              </p>
+              {loadingSharedUsers ? (
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                  <p className="text-gray-500">Loading users...</p>
+                </div>
+              ) : sharedUsers.length > 0 ? (
+                <ul className="space-y-4">
+                  {sharedUsers.map(user => (
+                    <li key={user.id} className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{user.username}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                      <button
+                        onClick={() => handleUnshareWithUser(user.id)}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                      >
+                        Unshare
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-gray-500">This file has not been shared with any users yet</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getShareList } from '@/lib/file';
+import { getShareList, getAllUsers } from '@/lib/file';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    // 获取查询类型参数
+    const type = request.nextUrl.searchParams.get('type') || 'shared';
+    
     // 驗證身份
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
@@ -23,16 +26,23 @@ export async function GET(request: NextRequest) {
     }
     
     const token = authHeader.substring(7);
-    const user = await verifyToken(token);
-    if (!user) {
+    const userId = await verifyToken(token);
+    if (!userId) {
       return NextResponse.json(
         { message: 'Invalid or expired token' },
         { status: 401 }
       );
     }
     
-    // 獲取分享清單
-    const users = await getShareList(fileId);
+    // 根据type参数获取不同的用户列表
+    let users;
+    if (type === 'all') {
+      // 获取所有可分享的用户列表（排除当前用户和已分享的用户）
+      users = await getAllUsers(fileId, userId);
+    } else {
+      // 获取已分享的用户列表
+      users = await getShareList(fileId);
+    }
     
     return NextResponse.json({ users });
   } catch (error) {

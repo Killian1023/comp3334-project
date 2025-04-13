@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { eq, ne, and, not, inArray } from 'drizzle-orm';
+import { eq, ne, and, not, inArray, notInArray } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { get } from 'http';
@@ -202,52 +202,66 @@ export const getFileKeyById = async (fileId: string) => {
 
 export const getShareList = async (fileId: string) => {
   try {
-    // Get the information of the current file and ensure that the file exists
+    // 获取当前文件信息并确保文件存在
     const file = await getFileById(fileId);
     if (!file) {
       throw new Error('File not found');
     }
     
-    // Get the list of user IDs that have shared
+    // 获取已分享用户的记录
     const sharedAccessRecords = await db
-      .select()
+      .select({
+        userId: schema.fileAccess.sharedWith
+      })
       .from(schema.fileAccess)
       .where(eq(schema.fileAccess.fileId, fileId));
     
-    const sharedUserIds = sharedAccessRecords.map(record => record.sharedWith);
-    
-    // Basic query conditions: Exclude file owners
-    let conditions = ne(schema.users.id, file.userId);
-    
-    // If there are shared users, add conditions to exclude these users
-    if (sharedUserIds.length > 0) {
-      const newConditions = and(
-        conditions,
-        not(inArray(schema.users.id, sharedUserIds))
-      );
-      if (newConditions !== undefined) {
-        conditions = newConditions;
-      }
+    // 如果没有分享记录，返回空数组
+    if (sharedAccessRecords.length === 0) {
+      return [];
     }
     
-    // Get all users who can share
-    const availableUsers = await db
+    // 获取已分享用户的详细信息
+    const sharedUserIds = sharedAccessRecords.map(record => record.userId);
+    const sharedUsers = await db
       .select({
         id: schema.users.id,
         username: schema.users.username,
         email: schema.users.email
       })
       .from(schema.users)
-      .where(conditions);
+      .where(inArray(schema.users.id, sharedUserIds));
     
-
-    
-    return availableUsers;
+    return sharedUsers;
     
   } catch (error) {
     throw error;
   }
-}
+};
+
+export const getAllUsers = async (fileId: string, currentUserId: string) => {
+  try {
+    // 获取已分享的用户ID列表
+    const sharedUsers = await getShareList(fileId);
+    const sharedUserIds = sharedUsers.map(user => user.id);
+    
+    // 获取所有用户，排除当前用户和已分享的用户
+    const allUsers = await db
+      .select({
+        id: schema.users.id,
+        username: schema.users.username,
+        email: schema.users.email
+      })
+      .from(schema.users)
+      .where(
+        notInArray(schema.users.id, [...sharedUserIds, currentUserId])
+      );
+    
+    return allUsers;
+  } catch (error) {
+    throw error;
+  }
+};
 
 export const getEncryptedFileKey = async (fileId: string) => {
   try {
