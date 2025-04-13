@@ -1,78 +1,239 @@
-两个地方有ENCRYPTION，一个在clientencryption.tsx，用于在本地生成用户的encryption key，还有一个是密码hash，在auth.ts里面，用于密码加密。
-filehelper.ts用于加密及解密文件。
+# SecureFileVault
 
+A secure file management application with client-side encryption, access control, and comprehensive audit logging.
 
-Section 5: Functionality
-The CORE functionalities of your application are listed below:
-1. User Management:
-a. Register a user by username and password.
-i. The username must be unique.
-ii. The password must be hashed by a proper algorithm.
-b. Log in
-i. Check whether the password is identical to the password in
-registration.
-c. A user should be able to reset its password.
-2. Data Encryption:
-a. Upload
-i. When a user uploads a file, the client should encrypt the file using
-an appropriate cryptosystem, with the key securely generated and
-stored locally.
-ii. Server should not be able to read the file in plaintext.
-b. Download
-i. When a user downloads a file, the client should decrypt the file and
-return the plaintext to the user.
-3. Access Control
-a. A user can only add/edit/delete its own files.
-b. A user can share its files with designated users. The designated users should
-be able to read the shared files via their Clients.
-c. An unauthorized user should not be able to access the file content of other
-users.
-4. Log Auditing
-a. The critical operations, such as logging in, logging out, uploading, deleting,
-sharing, should be recorded.
-i. A user should not be able to repudiate it.
-b. The administrator account of your application should be able to read logs.
-5. General Security Protection
-a. File name must be valid. Some file names can be used to attack. For
-example, the file name “../file.txt” (without quotes) can be used to access
-file.txt in the parent folder.
-b. Your application should also consider the security threats on accounts, e.g.,
-SQL injections.
+## Technology Stack
 
+- **Frontend**: Next.js 15, React 19, TailwindCSS, Web Crypto API
+- **Backend**: Next.js API Routes, SQLite, Drizzle ORM
+- **Authentication**: JWT, bcrypt
+- **Encryption**: ES-256, Asymmetric Encryption
+- **Deployment**: Node.js environment
 
-The EXTENDED functionalities of your application are listed below:
-1. Multi-Factor Authentication (MFA): FIDO2, One-Time Password (OTP),
-email/phone verification code, etc.
-2. Efficient update on files: Suppose you are editing a file that has already been saved
-online. If you want to modify a part of this file, find a method that Client does not
-need to encrypt the entire file and submit it again.
-3. Other security designs that you think are necessary.
+## Features
 
+- **User Management**: Registration, login, and password reset
+- **End-to-End Encryption**: Client-side file encryption using ES-256
+- **Access Control**: File sharing with specific users and permission management
+- **Audit Logging**: Comprehensive logging of all user actions with non-repudiation
+- **Security Measures**: Protection against common security threats including SQL injection and path traversal
 
-note:
-    /app/lib 是數據庫調用，增刪改查
-    /app/lib/file.ts 文件處理
-    /app/lib/auth.ts 用戶處理
-    /app/lib/logger.ts 日誌處理
+## Prerequisites
 
-文件加解密：ES-256
-fileKey加解密：ES-256
+The following software is required to run this application:
 
-upload加fileKey，加密文本，用publicKey加密fileKey，將encryptedFileKey發給後端，存在access table
-後端存publicKey (Michael):
-    /app/api/file/upload 上傳api
-    /app/api/file/download 下載api，需要包括下載共享文件的功能
-    /app/utils/fileHelper 加密及解密文件的function
-    /app/api/auth/getPublicKey 獲取用戶publicKey
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [npm](https://www.npmjs.com/) (included with Node.js)
+- [Python 3](https://www.python.org/) (for administrative tasks)
 
-註冊生成非對稱密鑰 (Michael)
-    /app/utils/clientencryption 生成用戶publickey & secretkey
-    /app/api/auth/register 註冊，調用/app/lib/auth.ts寫入用戶數據
+## Installation Guide for Windows 11
 
-實現share，前端獲取共享人的publicKey，用自己的privateKey解密encryptedFileKey，用共享人publicKey加密fileKey，將加密fileKey發給後端，存在access table (Eric)
-    /app/api/file/share 共享文件api
-    /app/utils/clientencryption 用戶端加密解密function
-    /app/utils/fileKey
+### 1. Install Node.js and npm
 
-改密碼 (Killian)
-otp (Killian)
+1. Visit [Node.js official website](https://nodejs.org/)
+2. Download the LTS (Long Term Support) version for Windows
+3. Run the installer and follow the installation wizard
+4. To verify the installation, open Command Prompt and run:
+   ```
+   node --version
+   npm --version
+   ```
+
+### 2. Install Python 3
+
+1. Visit [Python official website](https://www.python.org/downloads/windows/)
+2. Download the latest Python 3 installer for Windows
+3. Run the installer
+4. **Important**: Check the box "Add Python to PATH" during installation
+5. To verify the installation, open Command Prompt and run:
+   ```
+   python --version
+   ```
+
+### 3. Extract the Project Files
+
+1. Extract the project ZIP file to a location of your choice
+2. Open Command Prompt and navigate to the extracted directory
+
+### 4. Install Project Dependencies
+
+```
+npm install
+```
+
+### 5. Build the Application
+
+```
+npm run build
+```
+
+### 6. Start the Application
+
+```
+npm start
+```
+
+After starting, the application will be accessible at `http://localhost:3000`.
+
+### 7. Configure SSL/TLS Certificates (HTTPS)
+
+To securely access the application via HTTPS, you need to configure SSL/TLS certificates:
+
+#### Using Self-Signed Certificates (Development Environment)
+
+1. Generate a self-signed certificate:
+   ```
+   openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ./cert/key.pem -out ./cert/cert.pem
+   ```
+
+2. Create or modify the `next.config.js` file with the following content:
+   ```javascript
+   const fs = require('fs');
+   const path = require('path');
+   
+   module.exports = {
+     server: {
+       https: {
+         key: fs.readFileSync(path.resolve('./cert/key.pem')),
+         cert: fs.readFileSync(path.resolve('./cert/cert.pem'))
+       }
+     }
+   };
+   ```
+
+3. Modify the start scripts in `package.json`:
+   ```json
+   "scripts": {
+     "dev": "next dev --https",
+     "start": "next start --https"
+   }
+   ```
+
+#### Using Production Certificates
+
+1. Obtain an SSL/TLS certificate from a Certificate Authority (CA) such as Let's Encrypt
+2. Place the certificate files (typically `.pem` or `.crt` and `.key` files) in a secure location
+3. Configure `next.config.js` to point to your certificates:
+   ```javascript
+   const fs = require('fs');
+   const path = require('path');
+   
+   module.exports = {
+     server: {
+       https: {
+         key: fs.readFileSync(path.resolve('/path/to/your/key.pem')),
+         cert: fs.readFileSync(path.resolve('/path/to/your/cert.pem'))
+       }
+     }
+   };
+   ```
+
+4. For production environments, it is recommended to use a reverse proxy like Nginx or Apache to handle SSL termination
+
+## Usage Guide
+
+### User Registration
+
+1. Navigate to the registration page at `http://localhost:3000/register`
+2. Enter a unique username, email, and a secure password
+3. During registration, cryptographic keys will be generated for file encryption
+4. Your private key will be securely stored in your browser's local storage
+5. **Important**: Make sure to backup your private key code! The system will display your private key after registration is complete. Please copy and store it securely. If your browser data is lost, you will not be able to recover your encrypted files without a backup of your private key.
+
+### Login
+
+1. Visit `http://localhost:3000/login`
+2. Enter your username and password
+3. Upon successful login, you'll be redirected to your file dashboard
+
+### File Management
+
+#### Uploading Files
+
+1. Click on "Upload" in the dashboard
+2. Select a file from your computer
+3. The file will be encrypted in your browser before being sent to the server
+4. The server only stores the encrypted file, and cannot access the contents
+
+#### Downloading Files
+
+1. Select a file in your dashboard
+2. Click "Download"
+3. The encrypted file will be downloaded and decrypted in your browser
+4. The decrypted file will be saved to your computer
+
+#### Sharing Files
+
+1. Select a file in your dashboard
+2. Click "Share"
+3. Enter the username of the user you want to share with
+4. The system will securely share the encryption key with the designated user using their public key
+
+### Administrator Functions
+
+1. Login with an administrator account
+2. Navigate to `http://localhost:3000/admin`
+3. View audit logs with user signatures for non-repudiation
+4. Manage system settings
+
+## Architecture
+
+### Frontend
+- Next.js 15
+- React 19
+- TailwindCSS for styling
+- Client-side encryption using Web Crypto API
+
+### Backend
+- Next.js API routes
+- SQLite with Drizzle ORM
+- JWT for authentication
+- bcrypt for password hashing
+
+### Security Features
+- ES-256 encryption for files
+- Public/private key pairs for secure key exchange
+- Non-repudiation through action signatures
+- Secure password hashing
+- Protection against SQL injection
+- Input validation and sanitization
+
+## Database Schema
+
+The application uses the following tables:
+- `users`: User account information and public keys
+- `files`: Encrypted file metadata and binary data
+- `file_access`: File sharing permissions and encrypted keys
+- `logs`: Audit logs for all actions with signatures
+- `admins`: Administrator accounts
+
+## Development
+
+To run the development server with faster compilation:
+```
+npm run dev
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Cryptographic Issues**:
+   - Make sure your browser supports the Web Crypto API (all modern browsers do)
+   - If keys are not generating, try clearing browser localStorage
+
+2. **Connection Refused**:
+   - Verify that the application is running and not blocked by firewall
+   - Check that port 3000 is available
+
+3. **File Upload Issues**:
+   - Ensure file permissions are correct
+   - Check browser console for any JavaScript errors
+
+4. **Certificate Issues**:
+   - Self-signed certificates will show warnings in browsers, which is normal in development environments
+   - For production, ensure you use certificates from a trusted CA
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
