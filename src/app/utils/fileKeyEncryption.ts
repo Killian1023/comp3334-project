@@ -29,9 +29,6 @@ export async function encryptFileKey(fileKey: string, publicKeyBase64: string): 
       .encrypt(publicKey);
     
     console.log('File key encryption successful');
-    // For testing purposes: output the original file key
-    console.log('Original file key (for testing):', fileKey);
-    console.log('Encrypted file key (for testing):', jwe);
     return jwe;
   } catch (error) {
     console.error('File key encryption failed:', error);
@@ -47,16 +44,9 @@ export async function encryptFileKey(fileKey: string, publicKeyBase64: string): 
  */
 export async function decryptFileKey(encryptedFileKey: string, privateKeyBase64: string): Promise<string> {
   try {
-    // For testing purposes: output the encrypted file key
-    console.log('Encrypted file key (for testing):', encryptedFileKey.substring(0, 20) + '...');
     
     // Parse private key
     const privateKeyJwk = JSON.parse(atob(privateKeyBase64));
-    console.log('Private key JWK format (for testing):', { 
-      kty: privateKeyJwk.kty, 
-      crv: privateKeyJwk.crv,
-      keyHasD: !!privateKeyJwk.d
-    });
     
     // Import elliptic curve private key using ECDH-ES
     const privateKey = await importJWK(privateKeyJwk, 'ECDH-ES');
@@ -70,7 +60,6 @@ export async function decryptFileKey(encryptedFileKey: string, privateKeyBase64:
     const decryptedFileKey = decoder.decode(plaintext);
     
     console.log('File key decryption successful');
-    console.log('Decrypted file key (for testing):', decryptedFileKey);
     return decryptedFileKey;
   } catch (error) {
     console.error('File key decryption failed:', error);

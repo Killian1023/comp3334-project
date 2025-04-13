@@ -180,8 +180,6 @@ export const downloadAndDecryptFile = async (fileId: string, userId: string, isS
     // Use private key to decrypt the file key
     const fileKey = await decryptFileKey(encryptedFileKey, privateKey);
     console.log('File key successfully decrypted');
-    // For testing purposes: output the decrypted file key
-    console.log('Decrypted file key (for testing purposes):', fileKey);
     
     // Use the decrypted file key to decrypt the file content (no need to decrypt the file name)
     const decryptedData = await decryptFileContent(
@@ -319,10 +317,6 @@ export const encryptFileForUpload = async (file: File): Promise<{
 export const prepareEncryptedFileUpload = async (file: File): Promise<FormData> => {
   // Get encrypted file data and original key
   const { encryptedData, fileKey, iv, originalName, originalType, size } = await encryptFileForUpload(file);
-  
-  // For testing purposes: output file key information
-  console.log('Original file key (test):', fileKey);
-  console.log('IV (test):', iv);
   
   // Get the current user's public key
   const publicKey = getCurrentUserPublicKey();
