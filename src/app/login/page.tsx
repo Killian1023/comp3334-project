@@ -9,10 +9,6 @@ import { signAction } from '../utils/clientencryption';
 const LoginPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [showHotpInput, setShowHotpInput] = useState(false);
-    const [hotpCode, setHotpCode] = useState('');
-    const [tempUserData, setTempUserData] = useState<any>(null);
-    const [counter, setCounter] = useState(0);
     const router = useRouter();
 
     const handleLogin = async (credentials: {username: string; password: string; privateKey: string}) => {
@@ -66,13 +62,7 @@ const LoginPage = () => {
                 return;
             }
             
-            // Store credentials temporarily for HOTP verification
-            setTempUserData({
-                userData: data,
-                privateKey: credentials.privateKey,
-                password: credentials.password
-            });
-            
+            // Get counter for HOTP generation
             const counterResponse = await fetch('/api/auth/getCounter', {
                 method: 'POST',
                 headers: {
@@ -84,76 +74,57 @@ const LoginPage = () => {
             });
             
             const counterData = await counterResponse.json();
-            const newCounter = counterData.counter;
-            setCounter(newCounter);
+            const counter = counterData.counter;
             
             // Generate HOTP code with the private key and counter
-            const generatedHotp = await generateHOTP(credentials.privateKey, newCounter);
+            const hotpCode = await generateHOTP(credentials.privateKey, counter);
             
-            // Show HOTP input field
-            setShowHotpInput(true);
-            // Auto-fill the generated HOTP (in a real app, you might want user to enter it)
-            setHotpCode(generatedHotp);
-            setIsLoading(false);
+            // Directly verify HOTP instead of showing input form
+            try {
+                const verifyResponse = await fetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: data.user.id,
+                        hotpCode: hotpCode,
+                        counter: counter
+                    }),
+                });
+
+                const verifyData = await verifyResponse.json();
+                
+                if (!verifyResponse.ok) {
+                    setError(verifyData.message || 'Verification failed');
+                    setIsLoading(false);
+                    return;
+                }
+                
+                // Store auth token
+                localStorage.setItem('authToken', verifyData.token);
+                
+                // Store private key
+                localStorage.setItem('privateKey', credentials.privateKey);
+                
+                // Store user info
+                localStorage.setItem('user', JSON.stringify(verifyData.user));
+                
+                // Log successful login
+                console.log('Login successful with automatic HOTP verification');
+                
+                // Redirect to files page
+                router.push('/files');
+                
+            } catch (error) {
+                console.error('HOTP verification error:', error);
+                setError('An error occurred during verification. Please try again.');
+                setIsLoading(false);
+            }
             
         } catch (error) {
             console.error('Login error:', error);
             setError('An unexpected error occurred. Please try again.');
-            setIsLoading(false);
-        }
-    };
-
-    const verifyHotp = async () => {
-        if (!tempUserData || !hotpCode) return;
-        
-        setIsLoading(true);
-        
-        try {
-            const response = await fetch('/api/auth/verify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userId: tempUserData.userData.user.id,
-                    hotpCode: hotpCode,
-                    counter: counter
-                }),
-            });
-
-            const data = await response.json();
-            
-            if (!response.ok) {
-                setError(data.message || 'Verification failed');
-                setIsLoading(false);
-                return;
-            }
-            
-            // Store auth token
-            localStorage.setItem('authToken', data.token);
-            
-            // Store private key
-            localStorage.setItem('privateKey', tempUserData.privateKey);
-            
-            // Store user info (without sensitive data) and确保公钥来自私钥
-            localStorage.setItem('user', JSON.stringify({
-                ...data.user
-            }));
-
-            // Store user info
-            localStorage.setItem('user', JSON.stringify(data.user));
-            
-            // Generate and store encryption keys
-            
-            // Log successful login
-            console.log('Login successful with HOTP verification');
-            
-            // Redirect to files page
-            router.push('/files');
-            
-        } catch (error) {
-            console.error('HOTP verification error:', error);
-            setError('An error occurred during verification. Please try again.');
             setIsLoading(false);
         }
     };
@@ -174,38 +145,7 @@ const LoginPage = () => {
                         </div>
                     )}
                     
-                    {!showHotpInput ? (
-                        <LoginForm onLogin={handleLogin} isLoading={isLoading} />
-                    ) : (
-                        <div>
-                            <div className="mb-4">
-                                <label htmlFor="hotp" className="block text-sm font-medium text-gray-700">
-                                    Authentication Code
-                                </label>
-                                <input
-                                    id="hotp"
-                                    name="hotp"
-                                    type="text"
-                                    required
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    value={hotpCode}
-                                    onChange={(e) => setHotpCode(e.target.value)}
-                                    maxLength={6}
-                                />
-                                <p className="mt-2 text-sm text-gray-500">
-                                    Enter the 6-digit code generated for your account
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={verifyHotp}
-                                disabled={isLoading || hotpCode.length !== 6}
-                                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300"
-                            >
-                                {isLoading ? 'Verifying...' : 'Verify Code'}
-                            </button>
-                        </div>
-                    )}
+                    <LoginForm onLogin={handleLogin} isLoading={isLoading} />
                     
                     <div className="mt-6">
                         <div className="relative">
