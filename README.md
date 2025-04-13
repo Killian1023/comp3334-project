@@ -39,35 +39,12 @@ The following software is required to run this application:
    npm --version
    ```
 
-### 2. Install Python 3
-
-1. Visit [Python official website](https://www.python.org/downloads/windows/)
-2. Download the latest Python 3 installer for Windows
-3. Run the installer
-4. **Important**: Check the box "Add Python to PATH" during installation
-5. To verify the installation, open Command Prompt and run:
-   ```
-   python --version
-   ```
-
-### 3. Extract the Project Files
+### 2. Extract the Project Files
 
 1. Extract the project ZIP file to a location of your choice
 2. Open Command Prompt and navigate to the extracted directory
 
-### 4. Install Project Dependencies
-
-```
-npm install
-```
-
-### 5. Build the Application
-
-```
-npm run build
-```
-
-### 6. Start the Application
+### 3. Start the Application
 
 ```
 npm start
@@ -75,7 +52,7 @@ npm start
 
 After starting, the application will be accessible at `http://localhost:3000`.
 
-### 7. Configure SSL/TLS Certificates (HTTPS)
+### 4. Configure SSL/TLS Certificates (HTTPS)
 
 To securely access the application via HTTPS, you need to configure SSL/TLS certificates:
 
@@ -172,6 +149,9 @@ To securely access the application via HTTPS, you need to configure SSL/TLS cert
 ### Administrator Functions
 
 1. Login with an administrator account
+   - Username: 3334Admin
+   - Password: Iam3334admin
+   - Private Key: eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6Im1rTmZycnROMG16ajBJdVdoQ1ZsSERxdWc0aEZjVy05VHFLZnZ3TU5RUDAiLCJ5Ijoicjl1VlJEa0cteGd1M2RGTjFXeF9qTi1idzBBTUFCM1ZkMG1YTE95d2pOayIsImQiOiJQbmtWaVVzVzV1S3M1eTA5Mld2dXFMUTVSNU9JT2FodUhOWF8zdHFkTzY0In0=
 2. Navigate to `http://localhost:3000/admin`
 3. View audit logs with user signatures for non-repudiation
 4. Manage system settings
